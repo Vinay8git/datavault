@@ -4,6 +4,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -70,5 +72,17 @@ public class Cache {
         if (metadata != null) {
             Files.deleteIfExists(Paths.get(metadata.getFilePath()));
         }
+    }
+
+    public Map.Entry<String, FileMetadata> getAndRemoveCurrentFile() {
+        synchronized (fileMetadataMap) {
+            Iterator<Map.Entry<String, FileMetadata>> iterator = fileMetadataMap.entrySet().iterator();
+            if (iterator.hasNext()) {
+                Map.Entry<String, FileMetadata> entry = iterator.next();
+                iterator.remove();
+                return entry;
+            }
+        }
+        return null;
     }
 }
