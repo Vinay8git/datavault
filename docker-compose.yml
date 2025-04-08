@@ -3,6 +3,8 @@ services:
     image: worker-image
     environment:
       - WORKER_ID=worker1
+      - HOST=worker1
+      - PORT=5000
     volumes:
       - worker1_storage:/app/storage
     networks:
@@ -14,6 +16,8 @@ services:
     image: worker-image
     environment:
       - WORKER_ID=worker2
+      - HOST=worker2
+      - PORT=5000
     volumes:
       - worker2_storage:/app/storage
     networks:
@@ -25,6 +29,8 @@ services:
     image: worker-image
     environment:
       - WORKER_ID=worker3
+      - HOST=worker3
+      - PORT=5000
     volumes:
       - worker3_storage:/app/storage
     networks:
@@ -36,6 +42,8 @@ services:
     image: worker-image
     environment:
       - WORKER_ID=worker4
+      - HOST=worker4
+      - PORT=5000
     volumes:
       - worker4_storage:/app/storage
     networks:
@@ -45,8 +53,6 @@ services:
 
   scheduler:
     image: scheduler-image
-    environment:
-      - SCHEDULER_ID=scheduler
     depends_on:
       - worker1
       - worker2
@@ -65,3 +71,4 @@ volumes:
 
 networks:
   app_network:
+    driver: bridge

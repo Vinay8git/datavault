@@ -5,14 +5,18 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
+import io.datavault.common.grpc.HeartbeatRequest;
 import io.datavault.common.grpc.RetrieveFileRequest;
 import io.datavault.common.grpc.RetrieveFileResponse;
+import io.datavault.common.grpc.SchedulerServiceGrpc;
 import io.datavault.common.grpc.StoreFileRequest;
 import io.datavault.common.grpc.StoreFileResponse;
 import io.datavault.common.grpc.WorkerServiceGrpc.WorkerServiceImplBase;
 import io.grpc.stub.StreamObserver;
 
 public class WorkerServiceImpl extends WorkerServiceImplBase {
+
+    private SchedulerServiceGrpc.SchedulerServiceBlockingStub schedulerServiceClient;
 
     @Override
     public void storeFile(StoreFileRequest request, StreamObserver<StoreFileResponse> responseObserver) {
@@ -80,4 +84,24 @@ public class WorkerServiceImpl extends WorkerServiceImplBase {
         responseObserver.onCompleted();
     }
 
+    public void sendHeartbeat() throws Exception {
+        String workerId = System.getenv("WORKER_ID");
+        String host = System.getenv("HOST");
+        String port = System.getenv("PORT");
+
+        if (workerId == null || host == null || port == null) {
+            System.err.println("Missing environment variables: WORKER_ID, HOST, or PORT");
+            return;
+        }
+
+        String address = host + ":" + port;
+        HeartbeatRequest request = HeartbeatRequest.newBuilder().setWorkerId(workerId).setAddress(address).build();
+        try {
+            System.out.println("Sending heartbeat request: " + request);
+            schedulerServiceClient.sendHeartbeat(request);
+            System.out.println("heartbeat request sent successfully.");
+        } catch (Exception e) {
+            System.err.println("Failed to send heartbeat: " + e.getMessage());
+        }
+    }
 }

@@ -13,6 +13,7 @@
     "@tailwindcss/vite": "^4.0.14",
     "axios": "^1.8.2",
     "cors": "^2.8.5",
+    "drive-frontend": "file:",
     "gsap": "^3.12.7",
     "lucide-react": "^0.483.0",
     "react": "^19.0.0",

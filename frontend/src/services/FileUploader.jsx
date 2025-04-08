@@ -17,11 +17,11 @@ const MultipleFileUploader = () => {
 
       const formData = new FormData();
       [...files].forEach((file) => {
-        formData.append("files", file);
+        formData.append("file", files[0]);
       });
 
       try {
-        const result = await fetch("https://yourEndPoint", {  // EndPoint of backend
+        const result = await fetch("http://localhost:8080/files/upload", {  // EndPoint of backend
           method: "POST",
           body: formData,
         });

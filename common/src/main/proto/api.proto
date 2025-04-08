@@ -9,6 +9,20 @@ service WorkerService {
   rpc RetrieveFile(RetrieveFileRequest) returns (RetrieveFileResponse);
 }
 
+service SchedulerService {
+  rpc SendHeartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+}
+
+
+message HeartbeatRequest {
+  string worker_id = 1;
+  string address = 2;
+}
+
+message HeartbeatResponse {
+  bool acknowledged = 1;
+}
+
 message StoreFileRequest {
   string worker_id = 1;  
   string file_id = 2;   

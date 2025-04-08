@@ -8,19 +8,25 @@ import org.springframework.stereotype.Service;
 
 import com.google.protobuf.ByteString;
 
+import io.datavault.common.grpc.HeartbeatRequest;
+import io.datavault.common.grpc.HeartbeatResponse;
+import io.datavault.common.grpc.SchedulerServiceGrpc;
 import io.datavault.common.grpc.StoreFileRequest;
 import io.datavault.common.grpc.StoreFileResponse;
 import io.datavault.common.grpc.WorkerServiceGrpc;
+import io.datavault.common.grpc.SchedulerServiceGrpc.SchedulerServiceBlockingStub;
+import io.datavault.common.grpc.SchedulerServiceGrpc.SchedulerServiceImplBase;
 import io.datavault.common.grpc.WorkerServiceGrpc.WorkerServiceBlockingStub;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.stub.StreamObserver;
 
 @Service
-public class WorkerServiceClient {
+public class SchedulerServiceImpl extends SchedulerServiceImplBase {
 
     private final Map<String, WorkerEndpoint> endpointMap = new HashMap<>();
 
-    public WorkerServiceClient(
+    public SchedulerServiceImpl(
             @Value("${worker.endpoints.worker1}") String worker1Endpoint,
             @Value("${worker.endpoints.worker2}") String worker2Endpoint,
             @Value("${worker.endpoints.worker3}") String worker3Endpoint,
@@ -77,6 +83,30 @@ public class WorkerServiceClient {
         public int getPort() {
             return port;
         }
+    }
+
+    @Override
+    public void sendHeartbeat(HeartbeatRequest request, StreamObserver<HeartbeatResponse> response) {
+        String workerId = request.getWorkerId();
+        WorkerEndpoint endpoint = endpointMap.get(workerId);
+        if (endpoint == null) {
+            response.onError(new IllegalArgumentException("Worker ID not found: " + workerId));
+            return;
+        }
+
+        ManagedChannel channel = ManagedChannelBuilder.forAddress(endpoint.getHost(), endpoint.getPort())
+                .usePlaintext()
+                .build();
+
+        try {
+            SchedulerServiceBlockingStub stub = SchedulerServiceGrpc.newBlockingStub(channel);
+            HeartbeatResponse heartbeatResponse = stub.sendHeartbeat(request);
+            response.onNext(heartbeatResponse);
+            response.onCompleted();
+        } finally {
+            channel.shutdownNow();
+        }
+
     }
 
 }

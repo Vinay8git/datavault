@@ -14,7 +14,7 @@ public class Scheduler {
     private Cache cache;
 
     @Autowired
-    private WorkerServiceClient workerServiceClient;
+    private SchedulerServiceImpl workerServiceClient;
 
     public void processNextFile() {
         Map.Entry<String, Cache.FileMetadata> entry = cache.getAndRemoveCurrentFile();
