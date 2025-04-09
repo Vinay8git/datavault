@@ -9,10 +9,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.google.protobuf.ByteString;
 import com.scheduler.scheduler.model.WorkerInfo;
+import com.scheduler.scheduler.repositoty.FileMetadataRepository;
 
 import io.datavault.common.grpc.HeartbeatRequest;
 import io.datavault.common.grpc.HeartbeatResponse;
@@ -32,6 +34,9 @@ public class SchedulerServiceImpl extends SchedulerServiceImplBase {
     private final ReentrantLock lock = new ReentrantLock();
     private final long timeout = 5 * 1000;
     private final AtomicInteger roundRobinCounter = new AtomicInteger(0);
+
+    @Autowired
+    FileMetadataRepository fileMetadataRepository;
 
     public void updateWorker(String workerId, String workerAddress) {
         long currentTime = Instant.now().toEpochMilli();
@@ -88,6 +93,11 @@ public class SchedulerServiceImpl extends SchedulerServiceImplBase {
         int index = roundRobinCounter.getAndIncrement() % activeWorkerIds.size();
         String selectedWorkerId = activeWorkerIds.get(index);
         String address = activeWorkers.get(selectedWorkerId);
+        fileMetadataRepository.findById(fileId).ifPresent(metadata -> {
+            metadata.setWorkerId(selectedWorkerId);
+            metadata.setWorkerAddress(address);
+            fileMetadataRepository.save(metadata);
+        });
 
         String[] parts = address.split(":");
         String host = parts[0];
