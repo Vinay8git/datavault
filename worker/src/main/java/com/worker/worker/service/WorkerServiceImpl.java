@@ -4,6 +4,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import io.datavault.common.grpc.HeartbeatRequest;
 import io.datavault.common.grpc.RetrieveFileRequest;
@@ -12,11 +15,15 @@ import io.datavault.common.grpc.SchedulerServiceGrpc;
 import io.datavault.common.grpc.StoreFileRequest;
 import io.datavault.common.grpc.StoreFileResponse;
 import io.datavault.common.grpc.WorkerServiceGrpc.WorkerServiceImplBase;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
+import jakarta.annotation.PostConstruct;
 
 public class WorkerServiceImpl extends WorkerServiceImplBase {
 
     private SchedulerServiceGrpc.SchedulerServiceBlockingStub schedulerServiceClient;
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     @Override
     public void storeFile(StoreFileRequest request, StreamObserver<StoreFileResponse> responseObserver) {
@@ -103,5 +110,21 @@ public class WorkerServiceImpl extends WorkerServiceImplBase {
         } catch (Exception e) {
             System.err.println("Failed to send heartbeat: " + e.getMessage());
         }
+    }
+
+    @PostConstruct
+    public void init() {
+        String schedulerHost = System.getenv("SCHEDULER_HOST");
+        int schedulerPort = Integer.parseInt(System.getenv("SCHEDULER_PORT"));
+        ManagedChannel channel = ManagedChannelBuilder.forAddress(schedulerHost, schedulerPort).usePlaintext().build();
+        schedulerServiceClient = SchedulerServiceGrpc.newBlockingStub(channel);
+        System.out.println("Scheduler service client initialized.");
+        scheduler.scheduleAtFixedRate(() -> {
+            try {
+                sendHeartbeat();
+            } catch (Exception e) {
+                System.out.println("Failed to send heartbeat: " + e.getMessage());
+            }
+        }, 0, 5, TimeUnit.SECONDS);
     }
 }

@@ -12,18 +12,19 @@ public class FileMetadata {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
     private String filename;
     private long size;
     private LocalDateTime uploadTime;
     private String workerId;
+    private String workerAddress;
 
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -57,6 +58,14 @@ public class FileMetadata {
 
     public void setWorkerId(String workerId) {
         this.workerId = workerId;
+    }
+
+    public String getWorkerAddress() {
+        return workerAddress;
+    }
+
+    public void setWorkerAddress(String workerAddress) {
+        this.workerAddress = workerAddress;
     }
 
 }

@@ -21,6 +21,7 @@ message HeartbeatRequest {
 
 message HeartbeatResponse {
   bool acknowledged = 1;
+  string message = 2;
 }
 
 message StoreFileRequest {

@@ -20,15 +20,11 @@ public class WorkerInfo {
     }
 
     public long getLastHeartbeat() {
-        return lastHeartbeat;
+        return this.lastheartbeat;
     }
 
     public void updateHeartbeat() {
-        this.lastHeartbeat = System.currentTimeMillis();
-    }
-
-    public void updateHeartbeat() {
-        this.lastHeartbeat = System.currentTimeMillis();
+        this.lastheartbeat = System.currentTimeMillis();
     }
 
 }
