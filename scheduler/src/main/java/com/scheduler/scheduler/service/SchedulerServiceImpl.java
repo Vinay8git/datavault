@@ -11,11 +11,14 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import io.grpc.Status;
 
 import com.google.protobuf.ByteString;
 import com.scheduler.scheduler.model.WorkerInfo;
 import com.scheduler.scheduler.repositoty.FileMetadataRepository;
 
+import io.datavault.common.grpc.AssignWorkerRequest;
+import io.datavault.common.grpc.AssignWorkerResponse;
 import io.datavault.common.grpc.HeartbeatRequest;
 import io.datavault.common.grpc.HeartbeatResponse;
 import io.datavault.common.grpc.StoreFileRequest;
@@ -123,6 +126,35 @@ public class SchedulerServiceImpl extends SchedulerServiceImplBase {
                 .setMessage("Heartbeat received for worker: " + workerId).build();
         response.onNext(heartbeatResponse);
         response.onCompleted();
+    }
+
+    @Override
+    public void assignWorkerForChunk(AssignWorkerRequest request,
+            StreamObserver<AssignWorkerResponse> responseObserver) {
+
+        Map<String, String> activeWorkers = getActiveWorkers();
+
+        if (activeWorkers.isEmpty()) {
+            responseObserver.onError(
+                    Status.UNAVAILABLE.withDescription("No active workers").asRuntimeException());
+            return;
+        }
+
+        List<String> workerIdList = new ArrayList<>(activeWorkers.keySet());
+        int index = roundRobinCounter.getAndUpdate(i -> (i + 1) % workerIdList.size());
+        String selectedWorkerId = workerIdList.get(index);
+        String address = activeWorkers.get(selectedWorkerId);
+
+        AssignWorkerResponse response = AssignWorkerResponse.newBuilder()
+                .setAssignedWorkerId(selectedWorkerId)
+                .setAssignedWorkerAddress(address)
+                .build();
+
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+
+        System.out.printf("Assigned worker %s for file %s chunk %d%n",
+                selectedWorkerId, request.getFileId(), request.getChunkId());
     }
 
 }

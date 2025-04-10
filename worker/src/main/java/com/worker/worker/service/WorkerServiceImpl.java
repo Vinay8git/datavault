@@ -4,9 +4,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Base64;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import com.worker.worker.model.ChunkTask;
 
 import io.datavault.common.grpc.HeartbeatRequest;
 import io.datavault.common.grpc.RetrieveFileRequest;
@@ -24,39 +27,6 @@ public class WorkerServiceImpl extends WorkerServiceImplBase {
 
     private SchedulerServiceGrpc.SchedulerServiceBlockingStub schedulerServiceClient;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-
-    @Override
-    public void storeFile(StoreFileRequest request, StreamObserver<StoreFileResponse> responseObserver) {
-        String workerId = request.getWorkerId();
-        String fileId = request.getFileId();
-        byte[] fileContent = request.getFileContent().toByteArray();
-        String storagePath = "app/storage/" + request.getWorkerId();
-
-        File dir = new File(storagePath);
-        if (!dir.exists()) {
-            dir.mkdirs();
-        }
-
-        String filePath = storagePath + "/" + fileId + ".dat";
-        File file = new File(filePath);
-
-        try (FileOutputStream fos = new FileOutputStream(file)) {
-            fos.write(fileContent);
-            fos.flush();
-
-            StoreFileResponse response = StoreFileResponse.newBuilder().setSuccess(true)
-                    .setMessage("file stored successfully on " + workerId).build();
-
-            responseObserver.onNext(response);
-            responseObserver.onCompleted();
-        } catch (IOException e) {
-            StoreFileResponse response = StoreFileResponse.newBuilder().setSuccess(false)
-                    .setMessage("Error storing file: " + e.getMessage()).build();
-
-            responseObserver.onNext(response);
-            responseObserver.onCompleted();
-        }
-    }
 
     @Override
     public void retrieveFile(RetrieveFileRequest request, StreamObserver<RetrieveFileResponse> responseObserver) {
@@ -127,4 +97,26 @@ public class WorkerServiceImpl extends WorkerServiceImplBase {
             }
         }, 0, 5, TimeUnit.SECONDS);
     }
+
+    @Override
+    public void storeChunk(String fileId, int chunkId, byte[] data, String workerId) {
+        try {
+            File baseDir = new File("chunks/" + workerId + "/" + fileId);
+            if (!baseDir.exists()) {
+                baseDir.mkdirs();
+            }
+
+            File chunkFile = new File(baseDir, "chunk_" + chunkId + ".part");
+            try (FileOutputStream fos = new FileOutputStream(chunkFile)) {
+                fos.write(data);
+            }
+
+            System.out.println("Successfully stored chunk " + chunkId + " for file " + fileId + " at "
+                    + chunkFile.getAbsolutePath());
+        } catch (IOException e) {
+            System.err.println("Failed to store chunk " + chunkId + " for file " + fileId);
+            e.printStackTrace();
+        }
+    }
+
 }

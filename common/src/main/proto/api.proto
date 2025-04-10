@@ -1,12 +1,13 @@
 syntax = "proto3";
 
 package com.datavault.common.grpc;
+
 option java_package = "io.datavault.common.grpc";
 option java_multiple_files = true;
 
 service WorkerService {
-  rpc StoreFile(StoreFileRequest) returns (StoreFileResponse);
-  rpc RetrieveFile(RetrieveFileRequest) returns (RetrieveFileResponse);
+  rpc StoreChunk(StoreChunkRequest) returns (StoreChunkResponse);
+  rpc RetrieveChunk(RetrieveChunkRequest) returns (RetrieveChunkResponse);
 }
 
 service SchedulerService {
@@ -35,23 +36,26 @@ message HeartbeatResponse {
   string message = 2;
 }
 
-message StoreFileRequest {
-  string worker_id = 1;  
-  string file_id = 2;   
-  bytes file_content = 3;  
+ 
+message StoreChunkRequest {
+  string worker_id = 1;
+  string file_id = 2;
+  int32 chunk_id = 3;
+  bytes chunk_data = 4;
 }
 
-message StoreFileResponse {
-  bool success = 1;         
-  string message = 2;      
+message StoreChunkResponse {
+  bool success = 1;
+  string message = 2;
 }
 
-message RetrieveFileRequest {
-  string worker_id = 1;    
-  string file_id = 2;     
+message RetrieveChunkRequest {
+  string worker_id = 1;
+  string file_id = 2;
+  int32 chunk_id = 3;
 }
 
-message RetrieveFileResponse {
-  bytes file_content = 1;  
-  bool found = 2;        
+message RetrieveChunkResponse {
+  bytes chunk_data = 1;
+  bool found = 2;
 }
