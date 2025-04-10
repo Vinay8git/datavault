@@ -11,8 +11,19 @@ service WorkerService {
 
 service SchedulerService {
   rpc SendHeartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+  rpc AssignWorkerForChunk(AssignWorkerRequest) returns (AssignWorkerResponse);
 }
 
+message AssignWorkerRequest {
+  string requester_worker_id = 1;
+  string file_id = 2;
+  int32 chunk_id = 3;
+}
+
+message AssignWorkerResponse {
+  string assigned_worker_id = 1;
+  string assigned_worker_address = 2;
+}
 
 message HeartbeatRequest {
   string worker_id = 1;

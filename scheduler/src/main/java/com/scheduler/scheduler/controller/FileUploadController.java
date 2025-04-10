@@ -1,8 +1,10 @@
 package com.scheduler.scheduler.controller;
 
-import java.time.LocalDateTime;
+import java.io.InputStream;
+import java.util.Arrays;
 import java.util.UUID;
 
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +15,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.scheduler.scheduler.config.RabbitMQConfig;
+import com.scheduler.scheduler.model.ChunkTask;
 import com.scheduler.scheduler.model.FileMetadata;
 import com.scheduler.scheduler.repositoty.FileMetadataRepository;
 
@@ -29,22 +33,31 @@ public class FileUploadController {
     @Autowired
     private FileMetadataRepository metadataRepository;
 
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
+
     @PostMapping("/uploadFile")
-    public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) {
-        try {
-            String fileId = UUID.randomUUID().toString();
-            FileMetadata metadata = new FileMetadata();
-            metadata.setId(fileId);
-            metadata.setFilename(file.getOriginalFilename());
-            metadata.setSize(file.getSize());
-            metadata.setUploadTime(LocalDateTime.now());
-            metadataRepository.save(metadata);
-            return ResponseEntity.ok("File uploaded and metadata saved successfully.");
+    public String uploadFile(@RequestParam("file") MultipartFile file) {
+
+        String fileId = UUID.randomUUID().toString();
+        int chunkSize = 128 * 1024;
+        byte[] buffer = new byte[chunkSize];
+        int chunkId = 0;
+
+        try (InputStream inputStream = file.getInputStream()) {
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                byte[] actualChunk = Arrays.copyOf(buffer, bytesRead);
+                String encodedData = java.util.Base64.getEncoder().encodeToString(actualChunk);
+                ChunkTask chunkTask = new ChunkTask(fileId, chunkId, encodedData);
+                rabbitTemplate.convertAndSend(RabbitMQConfig.CHUNK_QUEUE, chunkTask);
+                chunkId++;
+            }
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error processing the file.");
+            return "Error occurred while uploading the file: " + e.getMessage();
         }
+        return "Upload successful. Total chunks sent: " + chunkId;
     }
 
     @GetMapping("/getFile")
