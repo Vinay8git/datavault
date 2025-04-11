@@ -1,5 +1,8 @@
 package com.worker.worker.service;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.Base64;
 
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -20,15 +23,12 @@ import io.grpc.ManagedChannelBuilder;
 
 @Service
 public class ChunkTaskConsumer {
-
-    private final WorkerServiceImpl workerService;
     private final SchedulerServiceGrpc.SchedulerServiceBlockingStub schedulerStub;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final String currentWorkerId = System.getenv("WORKER_ID");
 
     public ChunkTaskConsumer(WorkerServiceImpl workerService,
             SchedulerServiceGrpc.SchedulerServiceBlockingStub schedulerStub) {
-        this.workerService = workerService;
         this.schedulerStub = schedulerStub;
     }
 
@@ -53,7 +53,7 @@ public class ChunkTaskConsumer {
             if (assignedWorkerId.equals(currentWorkerId)) {
                 System.out.printf("This worker (%s) is assigned for file %s, chunk %d. Storing locally.%n",
                         currentWorkerId, task.getFileId(), task.getChunkId());
-                workerService.storeChunk(task.getFileId(), task.getChunkId(), data, currentWorkerId);
+                storeChunkLocally(task.getFileId(), task.getChunkId(), data, currentWorkerId);
             } else {
                 System.out.printf(
                         "This worker (%s) is not assigned for file %s, chunk %d. Forwarding to worker %s at %s.%n",
@@ -67,7 +67,7 @@ public class ChunkTaskConsumer {
         }
     }
 
-    private void forwardChunkToRemote(String fileId, int chunkId, byte[] data, String assignedWorkerId,
+    private void forwardChunkToRemote(String fileId, String chunkId, byte[] data, String assignedWorkerId,
             String assignedWorkerAddress) {
         ManagedChannel channel = null;
         try {
@@ -104,4 +104,21 @@ public class ChunkTaskConsumer {
         }
     }
 
+    public void storeChunkLocally(String fileId, String chunkId, byte[] data, String workerId) {
+        try {
+            File baseDir = new File("app/storage/" + workerId);
+            if (!baseDir.exists()) {
+                baseDir.mkdirs();
+            }
+            File chunkFile = new File(baseDir, "chunk_" + chunkId + ".chunk");
+            try (FileOutputStream fos = new FileOutputStream(chunkFile)) {
+                fos.write(data);
+            }
+            System.out.println("Successfully stored chunk " + chunkId + " for file " + fileId + " at "
+                    + chunkFile.getAbsolutePath());
+        } catch (IOException e) {
+            System.err.println("Failed to store chunk " + chunkId + " for file " + fileId);
+            e.printStackTrace();
+        }
+    }
 }

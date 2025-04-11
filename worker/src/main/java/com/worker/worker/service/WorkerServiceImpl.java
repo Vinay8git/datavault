@@ -4,19 +4,19 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Base64;
+
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import com.worker.worker.model.ChunkTask;
-
 import io.datavault.common.grpc.HeartbeatRequest;
-import io.datavault.common.grpc.RetrieveFileRequest;
-import io.datavault.common.grpc.RetrieveFileResponse;
+import io.datavault.common.grpc.RetrieveChunkRequest;
+import io.datavault.common.grpc.RetrieveChunkResponse;
+
 import io.datavault.common.grpc.SchedulerServiceGrpc;
-import io.datavault.common.grpc.StoreFileRequest;
-import io.datavault.common.grpc.StoreFileResponse;
+import io.datavault.common.grpc.StoreChunkRequest;
+import io.datavault.common.grpc.StoreChunkResponse;
+
 import io.datavault.common.grpc.WorkerServiceGrpc.WorkerServiceImplBase;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -29,36 +29,43 @@ public class WorkerServiceImpl extends WorkerServiceImplBase {
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     @Override
-    public void retrieveFile(RetrieveFileRequest request, StreamObserver<RetrieveFileResponse> responseObserver) {
+    public void retrieveChunk(RetrieveChunkRequest request, StreamObserver<RetrieveChunkResponse> responseObserver) {
         String workerId = request.getWorkerId();
         String fileId = request.getFileId();
-        String storagePath = "app/storage/" + workerId + "/" + fileId + ".dat";
+        int chunkId = request.getChunkId();
+
+        String storagePath = "app/storage/" + workerId + "/" + fileId + "_" + chunkId + ".chunk";
 
         File file = new File(storagePath);
         if (!file.exists()) {
-            RetrieveFileResponse response = RetrieveFileResponse.newBuilder().setFound(false).build();
+            RetrieveChunkResponse response = RetrieveChunkResponse.newBuilder()
+                    .setFound(false)
+                    .build();
 
             responseObserver.onNext(response);
             responseObserver.onCompleted();
             return;
         }
 
-        byte[] fileContent = new byte[(int) file.length()];
         try (FileInputStream fis = new FileInputStream(file)) {
-            fis.read(fileContent);
-        } catch (IOException e) {
-            RetrieveFileResponse response = RetrieveFileResponse.newBuilder().build();
+            byte[] fileContent = fis.readAllBytes();
+
+            RetrieveChunkResponse response = RetrieveChunkResponse.newBuilder()
+                    .setFound(true)
+                    .setChunkData(com.google.protobuf.ByteString.copyFrom(fileContent))
+                    .build();
 
             responseObserver.onNext(response);
             responseObserver.onCompleted();
-            return;
+        } catch (IOException e) {
+            System.err.println("Failed to read chunk: " + e.getMessage());
+            RetrieveChunkResponse response = RetrieveChunkResponse.newBuilder()
+                    .setFound(false)
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
         }
-
-        RetrieveFileResponse response = RetrieveFileResponse.newBuilder()
-                .setFileContent(com.google.protobuf.ByteString.copyFrom(fileContent)).build();
-
-        responseObserver.onNext(response);
-        responseObserver.onCompleted();
     }
 
     public void sendHeartbeat() throws Exception {
@@ -99,23 +106,30 @@ public class WorkerServiceImpl extends WorkerServiceImplBase {
     }
 
     @Override
-    public void storeChunk(String fileId, int chunkId, byte[] data, String workerId) {
-        try {
-            File baseDir = new File("chunks/" + workerId + "/" + fileId);
-            if (!baseDir.exists()) {
-                baseDir.mkdirs();
-            }
+    public void storeChunk(StoreChunkRequest request, StreamObserver<StoreChunkResponse> responseObserver) {
+        String workerId = request.getWorkerId();
+        String fileId = request.getFileId();
+        int chunkId = request.getChunkId();
+        byte[] chunkData = request.getChunkData().toByteArray();
 
-            File chunkFile = new File(baseDir, "chunk_" + chunkId + ".part");
-            try (FileOutputStream fos = new FileOutputStream(chunkFile)) {
-                fos.write(data);
-            }
-
-            System.out.println("Successfully stored chunk " + chunkId + " for file " + fileId + " at "
-                    + chunkFile.getAbsolutePath());
+        File baseDir = new File("app/storage/" + workerId);
+        if (!baseDir.exists()) {
+            baseDir.mkdirs();
+        }
+        File chunkFile = new File(baseDir, fileId + "_" + chunkId + ".chunk");
+        try (FileOutputStream fos = new FileOutputStream(chunkFile)) {
+            fos.write(chunkData);
+            fos.flush();
+            StoreChunkResponse response = StoreChunkResponse.newBuilder().setSuccess(true).build();
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+            System.out.println("Chunk stored successfully: " + chunkFile.getAbsolutePath());
         } catch (IOException e) {
-            System.err.println("Failed to store chunk " + chunkId + " for file " + fileId);
-            e.printStackTrace();
+            System.err.println("Failed to store chunk: " + e.getMessage());
+            StoreChunkResponse response = StoreChunkResponse.newBuilder().setSuccess(false).build();
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+            return;
         }
     }
 
