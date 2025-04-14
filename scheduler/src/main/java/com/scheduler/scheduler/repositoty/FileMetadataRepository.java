@@ -1,7 +1,6 @@
 package com.scheduler.scheduler.repositoty;
 
 import java.util.List;
-import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -13,7 +12,4 @@ public interface FileMetadataRepository extends JpaRepository<FileMetadata, Stri
     FileMetadata findByFilename(String fileName);
 
     List<FileMetadata> findAllFileId(String fileId);
-
-    Optional<FileMetadata> findByFileIdAndChunkId(String fileId, int chunkId);
-
 }

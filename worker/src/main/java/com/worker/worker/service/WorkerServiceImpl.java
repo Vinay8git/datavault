@@ -9,6 +9,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.springframework.stereotype.Service;
+
 import io.datavault.common.grpc.HeartbeatRequest;
 import io.datavault.common.grpc.RetrieveChunkRequest;
 import io.datavault.common.grpc.RetrieveChunkResponse;
@@ -16,13 +18,13 @@ import io.datavault.common.grpc.RetrieveChunkResponse;
 import io.datavault.common.grpc.SchedulerServiceGrpc;
 import io.datavault.common.grpc.StoreChunkRequest;
 import io.datavault.common.grpc.StoreChunkResponse;
-
 import io.datavault.common.grpc.WorkerServiceGrpc.WorkerServiceImplBase;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import jakarta.annotation.PostConstruct;
 
+@Service
 public class WorkerServiceImpl extends WorkerServiceImplBase {
 
     private SchedulerServiceGrpc.SchedulerServiceBlockingStub schedulerServiceClient;

@@ -1,18 +1,18 @@
 syntax = "proto3";
 
-package com.datavault.common.grpc;
+package io.datavault.common.grpc;
 
 option java_package = "io.datavault.common.grpc";
 option java_multiple_files = true;
 
 service WorkerService {
-  rpc StoreChunk(StoreChunkRequest) returns (StoreChunkResponse);
-  rpc RetrieveChunk(RetrieveChunkRequest) returns (RetrieveChunkResponse);
+  rpc StoreChunk(StoreChunkRequest) returns (StoreChunkResponse){}
+  rpc RetrieveChunk(RetrieveChunkRequest) returns (RetrieveChunkResponse){}
 }
 
 service SchedulerService {
-  rpc SendHeartbeat(HeartbeatRequest) returns (HeartbeatResponse);
-  rpc AssignWorkerForChunk(AssignWorkerRequest) returns (AssignWorkerResponse);
+  rpc SendHeartbeat(HeartbeatRequest) returns (HeartbeatResponse){}
+  rpc AssignWorkerForChunk(AssignWorkerRequest) returns (AssignWorkerResponse){}
 }
 
 message AssignWorkerRequest {

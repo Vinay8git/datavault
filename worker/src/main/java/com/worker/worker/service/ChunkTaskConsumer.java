@@ -67,7 +67,7 @@ public class ChunkTaskConsumer {
         }
     }
 
-    private void forwardChunkToRemote(String fileId, String chunkId, byte[] data, String assignedWorkerId,
+    private void forwardChunkToRemote(String fileId, int chunkId, byte[] data, String assignedWorkerId,
             String assignedWorkerAddress) {
         ManagedChannel channel = null;
         try {
@@ -104,7 +104,7 @@ public class ChunkTaskConsumer {
         }
     }
 
-    public void storeChunkLocally(String fileId, String chunkId, byte[] data, String workerId) {
+    public void storeChunkLocally(String fileId, int chunkId, byte[] data, String workerId) {
         try {
             File baseDir = new File("app/storage/" + workerId);
             if (!baseDir.exists()) {

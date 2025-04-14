@@ -1,6 +1,8 @@
 services:
   worker1:
-    image: worker-image
+    build:
+      context: ./worker
+      dockerfile: Dockerfile.worker
     environment:
       - WORKER_ID=worker1
       - HOST=worker1
@@ -13,7 +15,9 @@ services:
       - "5001:5000"
 
   worker2:
-    image: worker-image
+    build:
+      context: ./worker
+      dockerfile: Dockerfile.worker
     environment:
       - WORKER_ID=worker2
       - HOST=worker2
@@ -26,7 +30,9 @@ services:
       - "5002:5000"
 
   worker3:
-    image: worker-image
+    build:
+      context: ./worker
+      dockerfile: Dockerfile.worker
     environment:
       - WORKER_ID=worker3
       - HOST=worker3
@@ -39,7 +45,9 @@ services:
       - "5003:5000"
 
   worker4:
-    image: worker-image
+    build:
+      context: ./worker
+      dockerfile: Dockerfile.worker
     environment:
       - WORKER_ID=worker4
       - HOST=worker4
@@ -52,7 +60,9 @@ services:
       - "5004:5000"
 
   scheduler:
-    image: scheduler-image
+    build:
+      context: ./scheduler
+      dockerfile: Dockerfile.scheduler
     depends_on:
       - worker1
       - worker2
@@ -63,11 +73,46 @@ services:
     ports:
       - "6000:6000"
 
+  common:
+    build:
+      context: ./common
+      dockerfile: Dockerfile.common
+    networks:
+      - app_network
+    ports:
+      - "7000:7000"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+    networks:
+      - app_network
+
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+
 volumes:
   worker1_storage:
   worker2_storage:
   worker3_storage:
   worker4_storage:
+  postgres_data:
 
 networks:
   app_network:

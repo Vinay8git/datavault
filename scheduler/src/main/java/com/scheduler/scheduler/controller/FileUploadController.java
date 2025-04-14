@@ -6,7 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.util.ArrayList;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -42,12 +42,10 @@ public class FileUploadController {
 
     @PostMapping("/uploadFile")
     public String uploadFile(@RequestParam("file") MultipartFile file) {
-
         String fileId = UUID.randomUUID().toString();
         int chunkSize = 128 * 1024;
         byte[] buffer = new byte[chunkSize];
         int chunkCount = 0;
-
         try (InputStream inputStream = file.getInputStream()) {
             int bytesRead;
             while ((bytesRead = inputStream.read(buffer)) != -1) {
@@ -57,7 +55,9 @@ public class FileUploadController {
                 rabbitTemplate.convertAndSend(RabbitMQConfig.CHUNK_QUEUE, chunkTask);
                 chunkCount++;
             }
-            metadataRepository.save(new FileMetadata(fileId, chunkCount, file.getOriginalFilename(), file.getSize()));
+            FileMetadata metadata = new FileMetadata(fileId, chunkCount, file.getOriginalFilename(), file.getSize());
+            metadata.setUploadTime(LocalDateTime.now());
+            metadataRepository.save(metadata);
         } catch (Exception e) {
             e.printStackTrace();
             return "Error occurred while uploading the file: " + e.getMessage();
@@ -91,32 +91,25 @@ public class FileUploadController {
     }
 
     private byte[] chunkAssembler(String fileId) throws IOException {
-        File storageDir = new File("app/storage");
-        if (!storageDir.exists() || !storageDir.isDirectory()) {
-            throw new FileNotFoundException("Storage directory not found");
+        List<FileMetadata> metadataList = metadataRepository.findAllFileId(fileId);
+
+        if (metadataList.isEmpty()) {
+            throw new FileNotFoundException("No metadata found for file: " + fileId);
         }
-
-        List<File> chunkFiles = new ArrayList<>();
-
-        File[] workerDirs = storageDir.listFiles(File::isDirectory);
-        if (workerDirs == null)
-            return new byte[0];
-
-        for (File workerDir : workerDirs) {
-            File[] files = workerDir.listFiles((dir, name) -> name.startsWith(fileId + "_") && name.endsWith(".chunk"));
-            if (files != null) {
-                chunkFiles.addAll(Arrays.asList(files));
-            }
-        }
-
-        chunkFiles.sort(Comparator.comparingInt(f -> {
-            String name = f.getName();
-            return Integer.parseInt(name.replace(fileId + "_", "").replace(".chunk", ""));
-        }));
+        metadataList.sort(Comparator.comparingInt(FileMetadata::getChunkId));
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        for (File chunk : chunkFiles) {
-            Files.copy(chunk.toPath(), outputStream);
+        for (FileMetadata metadata : metadataList) {
+            int chunkId = metadata.getChunkId();
+            String workerId = metadata.getWorkerId();
+
+            File chunkFile = new File("app/storage" + workerId + "/" + fileId + "_" + chunkId + ".chunk");
+
+            if (!chunkFile.exists()) {
+                throw new FileNotFoundException("Missing chunk file: " + chunkFile.getAbsolutePath());
+            }
+
+            Files.copy(chunkFile.toPath(), outputStream);
         }
         return outputStream.toByteArray();
     }
