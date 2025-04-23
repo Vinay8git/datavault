@@ -1,118 +1,162 @@
 services:
-  worker1:
-    build:
-      context: ./worker
-      dockerfile: Dockerfile.worker
-    environment:
-      - WORKER_ID=worker1
-      - HOST=worker1
-      - PORT=5000
-    volumes:
-      - worker1_storage:/app/storage
-    networks:
-      - app_network
-    ports:
-      - "5001:5000"
-
-  worker2:
-    build:
-      context: ./worker
-      dockerfile: Dockerfile.worker
-    environment:
-      - WORKER_ID=worker2
-      - HOST=worker2
-      - PORT=5000
-    volumes:
-      - worker2_storage:/app/storage
-    networks:
-      - app_network
-    ports:
-      - "5002:5000"
-
-  worker3:
-    build:
-      context: ./worker
-      dockerfile: Dockerfile.worker
-    environment:
-      - WORKER_ID=worker3
-      - HOST=worker3
-      - PORT=5000
-    volumes:
-      - worker3_storage:/app/storage
-    networks:
-      - app_network
-    ports:
-      - "5003:5000"
-
-  worker4:
-    build:
-      context: ./worker
-      dockerfile: Dockerfile.worker
-    environment:
-      - WORKER_ID=worker4
-      - HOST=worker4
-      - PORT=5000
-    volumes:
-      - worker4_storage:/app/storage
-    networks:
-      - app_network
-    ports:
-      - "5004:5000"
-
-  scheduler:
-    build:
-      context: ./scheduler
-      dockerfile: Dockerfile.scheduler
-    depends_on:
-      - worker1
-      - worker2
-      - worker3
-      - worker4
-    networks:
-      - app_network
-    ports:
-      - "6000:6000"
-
-  common:
-    build:
-      context: ./common
-      dockerfile: Dockerfile.common
-    networks:
-      - app_network
-    ports:
-      - "7000:7000"
-
-  rabbitmq:
-    image: rabbitmq:3-management
-    ports:
-      - "15672:15672"
-      - "5672:5672"
-    environment:
-      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
-      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
-    networks:
-      - app_network
-
   postgres:
-    image: postgres:15
-    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    networks:
+      - app_network
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: scheduler/Dockerfile.scheduler
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS}
+    ports:
+      - "8080:8080"
+      - "6000:6000"
+    networks:
+      - app_network
+
+  worker1:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile.worker
+    depends_on:
+      - rabbitmq
+      - scheduler
+    environment:
+      WORKER_ID: worker1
+      HOST: worker1
+      PORT: 5000
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      SCHEDULER_HOST: scheduler
+      SCHEDULER_PORT: 6000
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS}
+    volumes:
+      - worker1_storage:/app/storage
+    ports:
+      - "5001:5000"
+    networks:
+      - app_network
+
+  worker2:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile.worker
+    depends_on:
+      - rabbitmq
+      - scheduler
+    environment:
+      WORKER_ID: worker2
+      HOST: worker2
+      PORT: 5000
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      SCHEDULER_HOST: scheduler
+      SCHEDULER_PORT: 6000
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS}
+    volumes:
+      - worker2_storage:/app/storage
+    ports:
+      - "5002:5000"
+    networks:
+      - app_network
+
+  worker3:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile.worker
+    depends_on:
+      - rabbitmq
+      - scheduler
+    environment:
+      WORKER_ID: worker3
+      HOST: worker3
+      PORT: 5000
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      SCHEDULER_HOST: scheduler
+      SCHEDULER_PORT: 6000
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS}
+    volumes:
+      - worker3_storage:/app/storage
+    ports:
+      - "5003:5000"
+    networks:
+      - app_network
+
+  worker4:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile.worker
+    depends_on:
+      - rabbitmq
+      - scheduler
+    environment:
+      WORKER_ID: worker4
+      HOST: worker4
+      PORT: 5000
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      SCHEDULER_HOST: scheduler
+      SCHEDULER_PORT: 6000
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS}
+    volumes:
+      - worker4_storage:/app/storage
+    ports:
+      - "5004:5000"
+    networks:
+      - app_network
 
 volumes:
+  postgres_data:
   worker1_storage:
   worker2_storage:
   worker3_storage:
   worker4_storage:
-  postgres_data:
 
 networks:
   app_network:

@@ -1,20 +1,19 @@
 package com.scheduler.scheduler.model;
 
 import java.time.LocalDateTime;
-
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.IdClass;
 
 @Entity
+@IdClass(FileMetadataId.class)
 public class FileMetadata {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private String fileId;
+
+    @Id
     private int chunkId;
-    private int chunkCount;
     private String filename;
     private long size;
     private String workerId;
@@ -24,9 +23,8 @@ public class FileMetadata {
     public FileMetadata() {
     }
 
-    public FileMetadata(String fileId, int chunkCount, String filename, long size) {
+    public FileMetadata(String fileId, String filename, long size) {
         this.fileId = fileId;
-        this.chunkCount = chunkCount;
         this.filename = filename;
         this.size = size;
     }
@@ -45,14 +43,6 @@ public class FileMetadata {
 
     public void setChunkId(int chunkId) {
         this.chunkId = chunkId;
-    }
-
-    public int getChunkCount() {
-        return chunkCount;
-    }
-
-    public void setChunkCount(int chunkCount) {
-        this.chunkCount = chunkCount;
     }
 
     public String getFilename() {

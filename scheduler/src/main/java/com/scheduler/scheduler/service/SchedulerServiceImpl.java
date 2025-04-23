@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
@@ -15,7 +16,7 @@ import io.grpc.Status;
 
 import com.scheduler.scheduler.model.FileMetadata;
 import com.scheduler.scheduler.model.WorkerInfo;
-import com.scheduler.scheduler.repositoty.FileMetadataRepository;
+import com.scheduler.scheduler.repository.FileMetadataRepository;
 
 import io.datavault.common.grpc.AssignWorkerRequest;
 import io.datavault.common.grpc.AssignWorkerResponse;
@@ -112,12 +113,20 @@ public class SchedulerServiceImpl extends SchedulerServiceImplBase {
         String fileId = request.getFileId();
         int chunkId = request.getChunkId();
 
-        FileMetadata metadata = new FileMetadata();
-        metadata.setChunkId(chunkId);
-        metadata.setFileId(fileId);
-        metadata.setWorkerId(selectedWorkerId);
-        metadata.setWorkerAddress(address);
-        fileMetadataRepository.save(metadata);
+        Optional<FileMetadata> existingMetadata = fileMetadataRepository.findByFileIdAndChunkId(fileId, chunkId);
+
+        if (existingMetadata.isPresent()) {
+            FileMetadata existing = existingMetadata.get();
+
+            existing.setWorkerId(selectedWorkerId);
+            existing.setWorkerAddress(address);
+            fileMetadataRepository.save(existing);
+
+            responseObserver.onError(
+                    Status.ALREADY_EXISTS.withDescription("Worker already assigned for this chunk")
+                            .asRuntimeException());
+            return;
+        }
 
         AssignWorkerResponse response = AssignWorkerResponse.newBuilder()
                 .setAssignedWorkerId(selectedWorkerId)

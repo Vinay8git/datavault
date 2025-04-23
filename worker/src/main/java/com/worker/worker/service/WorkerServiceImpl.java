@@ -75,11 +75,6 @@ public class WorkerServiceImpl extends WorkerServiceImplBase {
         String host = System.getenv("HOST");
         String port = System.getenv("PORT");
 
-        if (workerId == null || host == null || port == null) {
-            System.err.println("Missing environment variables: WORKER_ID, HOST, or PORT");
-            return;
-        }
-
         String address = host + ":" + port;
         HeartbeatRequest request = HeartbeatRequest.newBuilder().setWorkerId(workerId).setAddress(address).build();
         try {

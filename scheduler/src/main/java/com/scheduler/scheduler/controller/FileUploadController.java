@@ -28,7 +28,11 @@ import org.springframework.web.multipart.MultipartFile;
 import com.scheduler.scheduler.config.RabbitMQConfig;
 import com.scheduler.scheduler.model.ChunkTask;
 import com.scheduler.scheduler.model.FileMetadata;
-import com.scheduler.scheduler.repositoty.FileMetadataRepository;
+import com.scheduler.scheduler.repository.FileMetadataRepository;
+import com.scheduler.scheduler.service.CreateMetadataService;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 @RestController
 @RequestMapping("/files")
@@ -37,32 +41,40 @@ public class FileUploadController {
     @Autowired
     private FileMetadataRepository metadataRepository;
 
+    @PersistenceContext
+    private EntityManager em;
+
     @Autowired
     private RabbitTemplate rabbitTemplate;
+
+    @Autowired
+    private CreateMetadataService createMetadataService;
 
     @PostMapping("/uploadFile")
     public String uploadFile(@RequestParam("file") MultipartFile file) {
         String fileId = UUID.randomUUID().toString();
         int chunkSize = 128 * 1024;
         byte[] buffer = new byte[chunkSize];
-        int chunkCount = 0;
+        int chunkId = 0;
+        createMetadataService.createMetadata(fileId,
+                file.getOriginalFilename(),
+                file.getSize(),
+                LocalDateTime.now());
+
         try (InputStream inputStream = file.getInputStream()) {
             int bytesRead;
             while ((bytesRead = inputStream.read(buffer)) != -1) {
                 byte[] actualChunk = Arrays.copyOf(buffer, bytesRead);
                 String encodedData = java.util.Base64.getEncoder().encodeToString(actualChunk);
-                ChunkTask chunkTask = new ChunkTask(fileId, chunkCount, encodedData);
+                ChunkTask chunkTask = new ChunkTask(fileId, chunkId, encodedData);
                 rabbitTemplate.convertAndSend(RabbitMQConfig.CHUNK_QUEUE, chunkTask);
-                chunkCount++;
+                chunkId++;
             }
-            FileMetadata metadata = new FileMetadata(fileId, chunkCount, file.getOriginalFilename(), file.getSize());
-            metadata.setUploadTime(LocalDateTime.now());
-            metadataRepository.save(metadata);
         } catch (Exception e) {
             e.printStackTrace();
             return "Error occurred while uploading the file: " + e.getMessage();
         }
-        return "Upload successful. Total chunks sent: " + chunkCount;
+        return "Upload successful. Total chunks sent: " + chunkId;
     }
 
     @GetMapping("/getFile")
@@ -91,7 +103,7 @@ public class FileUploadController {
     }
 
     private byte[] chunkAssembler(String fileId) throws IOException {
-        List<FileMetadata> metadataList = metadataRepository.findAllFileId(fileId);
+        List<FileMetadata> metadataList = metadataRepository.findAllByFileId(fileId);
 
         if (metadataList.isEmpty()) {
             throw new FileNotFoundException("No metadata found for file: " + fileId);

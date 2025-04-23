@@ -27,12 +27,12 @@ public class ChunkTaskConsumer {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final String currentWorkerId = System.getenv("WORKER_ID");
 
-    public ChunkTaskConsumer(WorkerServiceImpl workerService,
+    public ChunkTaskConsumer(
             SchedulerServiceGrpc.SchedulerServiceBlockingStub schedulerStub) {
         this.schedulerStub = schedulerStub;
     }
 
-    @RabbitListener(queues = "chunk_task_queue")
+    @RabbitListener(queues = "fileChunksQueue")
     public void handleTask(String message) {
         try {
 

@@ -1,0 +1,11 @@
+# Dockerfile.postgres
+# This Dockerfile initializes a Postgres container and loads schema.sql
+
+FROM postgres:latest
+
+# Copy the initialization SQL into the directory that Postgres executes on startup
+# The path is relative to the build context (project root)
+COPY scheduler/src/main/java/com/scheduler/scheduler/db/schema.sql /docker-entrypoint-initdb.d/schema.sql
+
+
+# No WORKDIR needed—Postgres entrypoint will execute any *.sql scripts in init directory

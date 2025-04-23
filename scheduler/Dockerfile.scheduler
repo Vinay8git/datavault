@@ -1,4 +1,19 @@
-FROM openjdk:17-jdk-slim
+# --- Stage 1: Build ---
+FROM maven:3.9.6-eclipse-temurin-17 AS builder
+WORKDIR /build
+
+COPY pom.xml .
+COPY common ./common
+COPY scheduler ./scheduler
+COPY worker ./worker 
+
+RUN mvn clean package -pl scheduler -am -DskipTests
+
+# --- Stage 2: Run ---
+FROM eclipse-temurin:17-jdk-jammy
 WORKDIR /app
-COPY target/scheduler-0.0.1-SNAPSHOT.jar app.jar
+COPY .env /app/.env
+
+COPY --from=builder /build/scheduler/target/scheduler-0.0.1-SNAPSHOT.jar app.jar
+
 ENTRYPOINT ["java", "-jar", "app.jar"]
