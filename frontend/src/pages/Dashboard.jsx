@@ -7,6 +7,7 @@ import DocumentPanel from "./DocumentPanel.jsx";
 import ImagePanel from "./ImagePanel.jsx";
 import MediaPanel from "./MediaPanel.jsx";
 import OtherPanel from "./OtherPanel.jsx";
+import calculateStorage from "../components/Utility/calculateStorage.jsx";
 
 import UploadTab from "../components/UI/UploadTab";
 
@@ -133,6 +134,9 @@ const Dashboard = () => {
       timeStamp: "9:30am, 24 Mar",
     },
   ];
+
+  const result = calculateStorage(data);
+  console.log(result.used);
 
   const [isUploadTab, setIsUploadTab] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");

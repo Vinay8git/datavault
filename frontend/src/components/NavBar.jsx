@@ -1,6 +1,6 @@
 import { MdCloudUpload } from "react-icons/md";
 import { CiLogout } from "react-icons/ci";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { CiSearch } from "react-icons/ci";
 import UploadTab from "./UI/UploadTab";
 import "./NavBar.css";
@@ -11,6 +11,7 @@ const NavBar = (props) => {
   // if(isUploadTab) {
   //   return <UploadTab/>;
   // }
+  const navigate = useNavigate();
 
   return (
     <div className="h-[10vh] flex items-center justify-between navbar ">
@@ -28,7 +29,8 @@ const NavBar = (props) => {
       <div className="right flex items-center justify-center w-fit gap-3 mr-7">
         <button
           onClick={() => {
-            props.isUpload();
+            // props.isUpload();
+            navigate('/upload')
           }}
           className="active:bg-orange-300 transition-all ease-in flex justify-center items-center text-xl hover:cursor-pointer gap-1 mr-3 bg-orange-600 text-white p-2 rounded-full"
         >
