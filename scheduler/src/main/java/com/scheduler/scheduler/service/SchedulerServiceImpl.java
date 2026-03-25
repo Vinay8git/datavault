@@ -116,17 +116,38 @@ public class SchedulerServiceImpl extends SchedulerServiceImplBase {
         Optional<FileMetadata> existingMetadata = fileMetadataRepository.findByFileIdAndChunkId(fileId, chunkId);
 
         if (existingMetadata.isPresent()) {
+            // Update existing record (e.g., initial metadata created during upload for chunk 0)
             FileMetadata existing = existingMetadata.get();
-
             existing.setWorkerId(selectedWorkerId);
             existing.setWorkerAddress(address);
             fileMetadataRepository.save(existing);
 
-            responseObserver.onError(
-                    Status.ALREADY_EXISTS.withDescription("Worker already assigned for this chunk")
-                            .asRuntimeException());
+            AssignWorkerResponse existingResponse = AssignWorkerResponse.newBuilder()
+                    .setAssignedWorkerId(selectedWorkerId)
+                    .setAssignedWorkerAddress(address)
+                    .build();
+            responseObserver.onNext(existingResponse);
+            responseObserver.onCompleted();
+
+            System.out.printf("Updated existing metadata: assigned worker %s for file %s chunk %d%n",
+                    selectedWorkerId, fileId, chunkId);
             return;
         }
+
+        // Persist the chunk-to-worker assignment
+        FileMetadata chunkMetadata = new FileMetadata();
+        chunkMetadata.setFileId(fileId);
+        chunkMetadata.setChunkId(chunkId);
+        chunkMetadata.setWorkerId(selectedWorkerId);
+        chunkMetadata.setWorkerAddress(address);
+        // Look up the original file metadata (chunkId=0) to get the filename
+        List<FileMetadata> existingRecords = fileMetadataRepository.findAllByFileId(fileId);
+        if (!existingRecords.isEmpty()) {
+            FileMetadata original = existingRecords.get(0);
+            chunkMetadata.setFilename(original.getFilename());
+            chunkMetadata.setSize(original.getSize());
+        }
+        fileMetadataRepository.save(chunkMetadata);
 
         AssignWorkerResponse response = AssignWorkerResponse.newBuilder()
                 .setAssignedWorkerId(selectedWorkerId)

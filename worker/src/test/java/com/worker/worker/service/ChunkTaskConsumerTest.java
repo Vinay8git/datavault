@@ -1,19 +1,10 @@
 package com.worker.worker.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.worker.worker.model.ChunkTask;
 import com.worker.worker.util.TestDataBuilder;
 import io.datavault.common.grpc.AssignWorkerRequest;
 import io.datavault.common.grpc.AssignWorkerResponse;
 import io.datavault.common.grpc.SchedulerServiceGrpc;
-import io.datavault.common.grpc.StoreChunkRequest;
-import io.datavault.common.grpc.StoreChunkResponse;
-import io.datavault.common.grpc.WorkerServiceGrpc;
-import io.grpc.ManagedChannel;
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.grpc.inprocess.InProcessServerBuilder;
-import io.grpc.stub.StreamObserver;
-import io.grpc.testing.GrpcCleanupRule;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,7 +35,6 @@ class ChunkTaskConsumerTest {
     private SchedulerServiceGrpc.SchedulerServiceBlockingStub schedulerStub;
 
     private ChunkTaskConsumer chunkTaskConsumer;
-    private ObjectMapper objectMapper;
 
     @TempDir
     File tempDir;
@@ -56,19 +46,12 @@ class ChunkTaskConsumerTest {
 
     @BeforeEach
     void setUp() {
-        objectMapper = new ObjectMapper();
-        
-        // Set environment variable for current worker ID
-        System.setProperty("WORKER_ID", TEST_WORKER_ID);
-        
-        chunkTaskConsumer = new ChunkTaskConsumer(schedulerStub);
+        chunkTaskConsumer = new ChunkTaskConsumer(schedulerStub, TEST_WORKER_ID);
     }
 
     @AfterEach
     void tearDown() {
-        // Clean up system property
-        System.clearProperty("WORKER_ID");
-        
+
         // Clean up any test files
         TestDataBuilder.cleanupDirectoryQuietly(new File("app/storage/" + TEST_WORKER_ID));
     }
@@ -81,7 +64,6 @@ class ChunkTaskConsumerTest {
     void testHandleTask_LocalStorage_WhenWorkerIsAssigned() throws Exception {
         // Arrange
         ChunkTask task = TestDataBuilder.createChunkTask(TEST_FILE_ID, TEST_CHUNK_ID, TEST_DATA);
-        String message = objectMapper.writeValueAsString(task);
 
         AssignWorkerResponse response = AssignWorkerResponse.newBuilder()
                 .setAssignedWorkerId(TEST_WORKER_ID)
@@ -92,15 +74,15 @@ class ChunkTaskConsumerTest {
                 .thenReturn(response);
 
         // Act
-        chunkTaskConsumer.handleTask(message);
+        chunkTaskConsumer.handleTask(task);
 
         // Assert
         verify(schedulerStub, times(1)).assignWorkerForChunk(any(AssignWorkerRequest.class));
-        
-        // Verify file was created locally
-        File expectedFile = new File("app/storage/" + TEST_WORKER_ID + "/chunk_" + TEST_CHUNK_ID + ".chunk");
+
+        // Verify file was created locally with standardized filename
+        File expectedFile = new File("app/storage/" + TEST_WORKER_ID + "/" + TEST_FILE_ID + "_" + TEST_CHUNK_ID + ".chunk");
         assertTrue(expectedFile.exists(), "Chunk file should be created locally");
-        
+
         byte[] storedData = Files.readAllBytes(expectedFile.toPath());
         assertArrayEquals(TEST_DATA, storedData, "Stored data should match original data");
     }
@@ -114,9 +96,8 @@ class ChunkTaskConsumerTest {
         // Arrange
         String remoteWorkerId = "remote-worker-2";
         String remoteWorkerAddress = "localhost:9092";
-        
+
         ChunkTask task = TestDataBuilder.createChunkTask(TEST_FILE_ID, TEST_CHUNK_ID, TEST_DATA);
-        String message = objectMapper.writeValueAsString(task);
 
         AssignWorkerResponse response = AssignWorkerResponse.newBuilder()
                 .setAssignedWorkerId(remoteWorkerId)
@@ -127,31 +108,31 @@ class ChunkTaskConsumerTest {
                 .thenReturn(response);
 
         // Act
-        chunkTaskConsumer.handleTask(message);
+        chunkTaskConsumer.handleTask(task);
 
         // Assert
         verify(schedulerStub, times(1)).assignWorkerForChunk(any(AssignWorkerRequest.class));
-        
+
         // Verify file was NOT created locally
-        File localFile = new File("app/storage/" + TEST_WORKER_ID + "/chunk_" + TEST_CHUNK_ID + ".chunk");
+        File localFile = new File("app/storage/" + TEST_WORKER_ID + "/" + TEST_FILE_ID + "_" + TEST_CHUNK_ID + ".chunk");
         assertFalse(localFile.exists(), "Chunk file should not be created locally when forwarding");
-        
+
         // Note: Actual gRPC forwarding is tested separately as it creates a new channel
     }
 
     /**
-     * Tests handling of invalid JSON message.
-     * Verifies that the consumer handles malformed messages gracefully without crashing.
+     * Tests handling of null task fields.
+     * Verifies that the consumer handles null encoded data gracefully without crashing.
      */
     @Test
-    void testHandleTask_InvalidMessage_HandlesGracefully() {
+    void testHandleTask_NullEncodedData_HandlesGracefully() {
         // Arrange
-        String invalidMessage = "{ invalid json }";
+        ChunkTask task = new ChunkTask(TEST_FILE_ID, TEST_CHUNK_ID, null);
 
-        // Act & Assert - should not throw exception
-        assertDoesNotThrow(() -> chunkTaskConsumer.handleTask(invalidMessage));
-        
-        // Verify scheduler was not called
+        // Act & Assert - should not throw exception (caught internally)
+        assertDoesNotThrow(() -> chunkTaskConsumer.handleTask(task));
+
+        // Verify scheduler was not called (exception happens before gRPC call)
         verify(schedulerStub, never()).assignWorkerForChunk(any(AssignWorkerRequest.class));
     }
 
@@ -164,7 +145,7 @@ class ChunkTaskConsumerTest {
         // Arrange
         String workerId = "new-worker-123";
         File storageDir = new File("app/storage/" + workerId);
-        
+
         // Ensure directory doesn't exist
         if (storageDir.exists()) {
             TestDataBuilder.cleanupDirectory(storageDir);
@@ -177,13 +158,13 @@ class ChunkTaskConsumerTest {
         // Assert
         assertTrue(storageDir.exists(), "Storage directory should be created");
         assertTrue(storageDir.isDirectory(), "Storage path should be a directory");
-        
-        File chunkFile = new File(storageDir, "chunk_" + TEST_CHUNK_ID + ".chunk");
+
+        File chunkFile = new File(storageDir, TEST_FILE_ID + "_" + TEST_CHUNK_ID + ".chunk");
         assertTrue(chunkFile.exists(), "Chunk file should be created");
-        
+
         byte[] storedData = Files.readAllBytes(chunkFile.toPath());
         assertArrayEquals(TEST_DATA, storedData, "Stored data should match original data");
-        
+
         // Cleanup
         TestDataBuilder.cleanupDirectory(storageDir);
     }
@@ -202,12 +183,12 @@ class ChunkTaskConsumerTest {
         chunkTaskConsumer.storeChunkLocally(TEST_FILE_ID, TEST_CHUNK_ID, chunkData, workerId);
 
         // Assert
-        File chunkFile = new File("app/storage/" + workerId + "/chunk_" + TEST_CHUNK_ID + ".chunk");
+        File chunkFile = new File("app/storage/" + workerId + "/" + TEST_FILE_ID + "_" + TEST_CHUNK_ID + ".chunk");
         assertTrue(chunkFile.exists(), "Chunk file should exist");
-        
+
         byte[] storedData = Files.readAllBytes(chunkFile.toPath());
         assertArrayEquals(chunkData, storedData, "Stored data should match input data");
-        
+
         // Cleanup
         TestDataBuilder.cleanupDirectory(new File("app/storage/" + workerId));
     }
@@ -220,7 +201,6 @@ class ChunkTaskConsumerTest {
     void testHandleTask_CreatesCorrectAssignWorkerRequest() throws Exception {
         // Arrange
         ChunkTask task = TestDataBuilder.createChunkTask(TEST_FILE_ID, TEST_CHUNK_ID, TEST_DATA);
-        String message = objectMapper.writeValueAsString(task);
 
         AssignWorkerResponse response = AssignWorkerResponse.newBuilder()
                 .setAssignedWorkerId(TEST_WORKER_ID)
@@ -232,15 +212,15 @@ class ChunkTaskConsumerTest {
                 .thenReturn(response);
 
         // Act
-        chunkTaskConsumer.handleTask(message);
+        chunkTaskConsumer.handleTask(task);
 
         // Assert
         AssignWorkerRequest capturedRequest = requestCaptor.getValue();
-        assertEquals(TEST_WORKER_ID, capturedRequest.getRequesterWorkerId(), 
+        assertEquals(TEST_WORKER_ID, capturedRequest.getRequesterWorkerId(),
                 "Request should contain correct worker ID");
-        assertEquals(TEST_FILE_ID, capturedRequest.getFileId(), 
+        assertEquals(TEST_FILE_ID, capturedRequest.getFileId(),
                 "Request should contain correct file ID");
-        assertEquals(TEST_CHUNK_ID, capturedRequest.getChunkId(), 
+        assertEquals(TEST_CHUNK_ID, capturedRequest.getChunkId(),
                 "Request should contain correct chunk ID");
     }
 
@@ -258,10 +238,10 @@ class ChunkTaskConsumerTest {
         chunkTaskConsumer.storeChunkLocally(TEST_FILE_ID, TEST_CHUNK_ID, emptyData, workerId);
 
         // Assert
-        File chunkFile = new File("app/storage/" + workerId + "/chunk_" + TEST_CHUNK_ID + ".chunk");
+        File chunkFile = new File("app/storage/" + workerId + "/" + TEST_FILE_ID + "_" + TEST_CHUNK_ID + ".chunk");
         assertTrue(chunkFile.exists(), "Chunk file should exist even with empty data");
         assertEquals(0, chunkFile.length(), "File should be empty");
-        
+
         // Cleanup
         TestDataBuilder.cleanupDirectory(new File("app/storage/" + workerId));
     }
@@ -276,7 +256,6 @@ class ChunkTaskConsumerTest {
         byte[] originalData = "Original binary data".getBytes();
         String encodedData = Base64.getEncoder().encodeToString(originalData);
         ChunkTask task = TestDataBuilder.createChunkTask(TEST_FILE_ID, TEST_CHUNK_ID, encodedData);
-        String message = objectMapper.writeValueAsString(task);
 
         AssignWorkerResponse response = AssignWorkerResponse.newBuilder()
                 .setAssignedWorkerId(TEST_WORKER_ID)
@@ -287,12 +266,12 @@ class ChunkTaskConsumerTest {
                 .thenReturn(response);
 
         // Act
-        chunkTaskConsumer.handleTask(message);
+        chunkTaskConsumer.handleTask(task);
 
         // Assert
-        File chunkFile = new File("app/storage/" + TEST_WORKER_ID + "/chunk_" + TEST_CHUNK_ID + ".chunk");
+        File chunkFile = new File("app/storage/" + TEST_WORKER_ID + "/" + TEST_FILE_ID + "_" + TEST_CHUNK_ID + ".chunk");
         assertTrue(chunkFile.exists(), "Chunk file should be created");
-        
+
         byte[] storedData = Files.readAllBytes(chunkFile.toPath());
         assertArrayEquals(originalData, storedData, "Decoded data should match original data");
     }

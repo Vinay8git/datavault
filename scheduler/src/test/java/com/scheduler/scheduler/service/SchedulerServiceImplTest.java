@@ -196,8 +196,8 @@ class SchedulerServiceImplTest {
     }
 
     /**
-     * Tests duplicate chunk assignment handling.
-     * Verifies that ALREADY_EXISTS error is returned when chunk is already assigned.
+     * Tests chunk assignment when metadata already exists (e.g., initial upload record for chunk 0).
+     * Verifies that the existing record is updated with worker assignment and success is returned.
      */
     @Test
     void testAssignWorkerForChunk_AlreadyExists() {
@@ -207,8 +207,7 @@ class SchedulerServiceImplTest {
         FileMetadata existingMetadata = new FileMetadata();
         existingMetadata.setFileId("file-123");
         existingMetadata.setChunkId(0);
-        existingMetadata.setWorkerId("worker-1");
-        existingMetadata.setWorkerAddress("localhost:9090");
+        // No worker assignment yet (initial upload record)
 
         when(fileMetadataRepository.findByFileIdAndChunkId("file-123", 0))
                 .thenReturn(Optional.of(existingMetadata));
@@ -223,17 +222,19 @@ class SchedulerServiceImplTest {
         // Act
         schedulerService.assignWorkerForChunk(request, assignWorkerResponseObserver);
 
-        // Assert
-        ArgumentCaptor<Throwable> errorCaptor = ArgumentCaptor.forClass(Throwable.class);
-        verify(assignWorkerResponseObserver).onError(errorCaptor.capture());
-        verify(assignWorkerResponseObserver, never()).onNext(any());
-        verify(assignWorkerResponseObserver, never()).onCompleted();
+        // Assert - should return success with worker assignment (not error)
+        ArgumentCaptor<AssignWorkerResponse> responseCaptor = ArgumentCaptor.forClass(AssignWorkerResponse.class);
+        verify(assignWorkerResponseObserver).onNext(responseCaptor.capture());
+        verify(assignWorkerResponseObserver).onCompleted();
+        verify(assignWorkerResponseObserver, never()).onError(any());
 
-        Throwable error = errorCaptor.getValue();
-        assertTrue(error instanceof StatusRuntimeException);
-        StatusRuntimeException statusException = (StatusRuntimeException) error;
-        assertEquals(Status.Code.ALREADY_EXISTS, statusException.getStatus().getCode());
-        assertTrue(statusException.getStatus().getDescription().contains("Worker already assigned"));
+        AssignWorkerResponse response = responseCaptor.getValue();
+        assertEquals("worker-1", response.getAssignedWorkerId());
+        assertEquals("localhost:9090", response.getAssignedWorkerAddress());
+
+        // Verify existing metadata was updated with worker assignment
+        verify(fileMetadataRepository).save(argThat(meta ->
+                "worker-1".equals(meta.getWorkerId()) && "localhost:9090".equals(meta.getWorkerAddress())));
     }
 
     /**

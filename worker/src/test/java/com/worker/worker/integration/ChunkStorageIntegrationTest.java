@@ -1,6 +1,5 @@
 package com.worker.worker.integration;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.worker.worker.model.ChunkTask;
 import com.worker.worker.util.TestDataBuilder;
 import io.datavault.common.grpc.AssignWorkerRequest;
@@ -55,13 +54,11 @@ class ChunkStorageIntegrationTest {
     @MockBean
     private SchedulerServiceGrpc.SchedulerServiceBlockingStub schedulerStub;
 
-    private ObjectMapper objectMapper;
     private static final String TEST_WORKER_ID = "integration-test-worker";
     private static final String QUEUE_NAME = "fileChunksQueue";
 
     @BeforeEach
     void setUp() {
-        objectMapper = new ObjectMapper();
         System.setProperty("WORKER_ID", TEST_WORKER_ID);
     }
 
@@ -69,17 +66,17 @@ class ChunkStorageIntegrationTest {
     void tearDown() {
         // Clean up system properties
         System.clearProperty("WORKER_ID");
-        
+
         // Clean up test storage directory
         TestDataBuilder.cleanupDirectoryQuietly(new File("app/storage/" + TEST_WORKER_ID));
-        
+
         // Reset mocks to ensure clean state for next test
         org.mockito.Mockito.reset(schedulerStub);
     }
 
     /**
      * Tests RabbitMQ message consumption.
-     * Verifies that messages sent to the queue are consumed by the worker service.
+     * Verifies that ChunkTask messages sent to the queue are consumed by the worker service.
      */
     @Test
     void testMessageConsumption_FromRabbitMQ() throws Exception {
@@ -88,7 +85,6 @@ class ChunkStorageIntegrationTest {
         int chunkId = 1;
         byte[] chunkData = "Integration test chunk data".getBytes();
         ChunkTask task = TestDataBuilder.createChunkTask(fileId, chunkId, chunkData);
-        String message = objectMapper.writeValueAsString(task);
 
         AssignWorkerResponse response = AssignWorkerResponse.newBuilder()
                 .setAssignedWorkerId(TEST_WORKER_ID)
@@ -98,14 +94,14 @@ class ChunkStorageIntegrationTest {
         when(schedulerStub.assignWorkerForChunk(any(AssignWorkerRequest.class)))
                 .thenReturn(response);
 
-        // Act
-        rabbitTemplate.convertAndSend(QUEUE_NAME, message);
+        // Act - Send ChunkTask object directly; Jackson2JsonMessageConverter handles serialization
+        rabbitTemplate.convertAndSend(QUEUE_NAME, task);
 
         // Wait for message processing
         Thread.sleep(2000);
 
-        // Assert
-        File chunkFile = new File("app/storage/" + TEST_WORKER_ID + "/chunk_" + chunkId + ".chunk");
+        // Assert - filename uses standardized format: {fileId}_{chunkId}.chunk
+        File chunkFile = new File("app/storage/" + TEST_WORKER_ID + "/" + fileId + "_" + chunkId + ".chunk");
         assertTrue(chunkFile.exists(), "Chunk file should be created after message consumption");
 
         byte[] storedData = Files.readAllBytes(chunkFile.toPath());
@@ -123,7 +119,6 @@ class ChunkStorageIntegrationTest {
         int chunkId = 5;
         byte[] chunkData = "End-to-end test data for chunk storage".getBytes();
         ChunkTask task = TestDataBuilder.createChunkTask(fileId, chunkId, chunkData);
-        String message = objectMapper.writeValueAsString(task);
 
         AssignWorkerResponse response = AssignWorkerResponse.newBuilder()
                 .setAssignedWorkerId(TEST_WORKER_ID)
@@ -134,7 +129,7 @@ class ChunkStorageIntegrationTest {
                 .thenReturn(response);
 
         // Act
-        rabbitTemplate.convertAndSend(QUEUE_NAME, message);
+        rabbitTemplate.convertAndSend(QUEUE_NAME, task);
 
         // Wait for async processing
         Thread.sleep(2000);
@@ -144,7 +139,7 @@ class ChunkStorageIntegrationTest {
         assertTrue(storageDir.exists(), "Storage directory should be created");
         assertTrue(storageDir.isDirectory(), "Storage path should be a directory");
 
-        File chunkFile = new File(storageDir, "chunk_" + chunkId + ".chunk");
+        File chunkFile = new File(storageDir, fileId + "_" + chunkId + ".chunk");
         assertTrue(chunkFile.exists(), "Chunk file should exist");
         assertTrue(chunkFile.isFile(), "Chunk path should be a file");
 
@@ -178,26 +173,25 @@ class ChunkStorageIntegrationTest {
             tasks.add(task);
         }
 
-        // Act - Send all messages concurrently
+        // Act - Send all ChunkTask objects directly
         for (ChunkTask task : tasks) {
-            String message = objectMapper.writeValueAsString(task);
-            rabbitTemplate.convertAndSend(QUEUE_NAME, message);
+            rabbitTemplate.convertAndSend(QUEUE_NAME, task);
         }
 
         // Wait for all messages to be processed
         Thread.sleep(3000);
 
-        // Assert - Verify all chunks were stored
+        // Assert - Verify all chunks were stored with standardized filenames
         File storageDir = new File("app/storage/" + TEST_WORKER_ID);
         assertTrue(storageDir.exists(), "Storage directory should exist");
 
         for (int i = 0; i < numberOfChunks; i++) {
-            File chunkFile = new File(storageDir, "chunk_" + i + ".chunk");
+            File chunkFile = new File(storageDir, fileId + "_" + i + ".chunk");
             assertTrue(chunkFile.exists(), "Chunk file " + i + " should exist");
 
             byte[] expectedData = ("Concurrent chunk data " + i).getBytes();
             byte[] storedData = Files.readAllBytes(chunkFile.toPath());
-            assertArrayEquals(expectedData, storedData, 
+            assertArrayEquals(expectedData, storedData,
                     "Chunk " + i + " data should match original");
         }
     }
@@ -211,10 +205,11 @@ class ChunkStorageIntegrationTest {
         // Assert
         assertTrue(rabbitmq.isRunning(), "RabbitMQ container should be running");
         assertNotNull(rabbitTemplate, "RabbitTemplate should be autowired");
-        
+
         // Verify we can send a message without errors
         assertDoesNotThrow(() -> {
-            rabbitTemplate.convertAndSend(QUEUE_NAME, "test-connection-message");
+            ChunkTask task = new ChunkTask("test-file", 0, "dGVzdA==");
+            rabbitTemplate.convertAndSend(QUEUE_NAME, task);
         }, "Should be able to send message to RabbitMQ");
     }
 
@@ -241,20 +236,24 @@ class ChunkStorageIntegrationTest {
         when(schedulerStub.assignWorkerForChunk(any(AssignWorkerRequest.class)))
                 .thenReturn(response);
 
-        // Act
-        rabbitTemplate.convertAndSend(QUEUE_NAME, objectMapper.writeValueAsString(task1));
-        rabbitTemplate.convertAndSend(QUEUE_NAME, objectMapper.writeValueAsString(task2));
+        // Act - Send ChunkTask objects directly
+        rabbitTemplate.convertAndSend(QUEUE_NAME, task1);
+        rabbitTemplate.convertAndSend(QUEUE_NAME, task2);
 
         // Wait for processing
         Thread.sleep(2000);
 
-        // Assert
+        // Assert - Each file's chunk is stored with its own fileId prefix
         File storageDir = new File("app/storage/" + TEST_WORKER_ID);
-        File chunk1 = new File(storageDir, "chunk_0.chunk");
-        
-        assertTrue(chunk1.exists(), "Both chunks should be stored");
-        
-        // Note: In this implementation, chunks with same ID overwrite each other
-        // This test verifies the storage mechanism works for multiple messages
+        File chunk1 = new File(storageDir, fileId1 + "_0.chunk");
+        File chunk2 = new File(storageDir, fileId2 + "_0.chunk");
+
+        assertTrue(chunk1.exists(), "File 1 chunk should be stored");
+        assertTrue(chunk2.exists(), "File 2 chunk should be stored");
+
+        byte[] storedData1 = Files.readAllBytes(chunk1.toPath());
+        byte[] storedData2 = Files.readAllBytes(chunk2.toPath());
+        assertArrayEquals(data1, storedData1, "File 1 data should match");
+        assertArrayEquals(data2, storedData2, "File 2 data should match");
     }
 }

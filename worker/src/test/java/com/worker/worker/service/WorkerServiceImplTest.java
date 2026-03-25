@@ -52,7 +52,7 @@ class WorkerServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        workerService = new WorkerServiceImpl();
+        workerService = new WorkerServiceImpl(schedulerStub);
         
         // Set environment variables for testing
         System.setProperty("WORKER_ID", TEST_WORKER_ID);
