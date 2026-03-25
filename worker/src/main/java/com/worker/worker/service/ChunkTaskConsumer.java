@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.Base64;
 
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.google.protobuf.ByteString;
@@ -23,19 +24,13 @@ import io.grpc.ManagedChannelBuilder;
 @Service
 public class ChunkTaskConsumer {
     private final SchedulerServiceGrpc.SchedulerServiceBlockingStub schedulerStub;
-    private final String currentWorkerId = resolveWorkerId();
-
-    private static String resolveWorkerId() {
-        String id = System.getenv("WORKER_ID");
-        if (id == null || id.isEmpty()) {
-            id = System.getProperty("WORKER_ID");
-        }
-        return id;
-    }
+    private final String currentWorkerId;
 
     public ChunkTaskConsumer(
-            SchedulerServiceGrpc.SchedulerServiceBlockingStub schedulerStub) {
+            SchedulerServiceGrpc.SchedulerServiceBlockingStub schedulerStub,
+            @Value("${WORKER_ID:#{systemEnvironment['WORKER_ID'] ?: systemProperties['WORKER_ID'] ?: 'worker1'}}") String workerId) {
         this.schedulerStub = schedulerStub;
+        this.currentWorkerId = workerId;
     }
 
     @RabbitListener(queues = "fileChunksQueue")

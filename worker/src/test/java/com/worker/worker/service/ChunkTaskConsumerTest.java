@@ -46,16 +46,11 @@ class ChunkTaskConsumerTest {
 
     @BeforeEach
     void setUp() {
-        // Set environment variable for current worker ID
-        System.setProperty("WORKER_ID", TEST_WORKER_ID);
-
-        chunkTaskConsumer = new ChunkTaskConsumer(schedulerStub);
+        chunkTaskConsumer = new ChunkTaskConsumer(schedulerStub, TEST_WORKER_ID);
     }
 
     @AfterEach
     void tearDown() {
-        // Clean up system property
-        System.clearProperty("WORKER_ID");
 
         // Clean up any test files
         TestDataBuilder.cleanupDirectoryQuietly(new File("app/storage/" + TEST_WORKER_ID));

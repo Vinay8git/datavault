@@ -56,10 +56,19 @@ public class FileUploadController {
         int chunkSize = 128 * 1024;
         byte[] buffer = new byte[chunkSize];
         int chunkId = 0;
+
+        // Compute total number of chunks upfront
+        long fileSize = file.getSize();
+        int totalChunks = (int) Math.ceil((double) fileSize / chunkSize);
+        if (totalChunks == 0) {
+            totalChunks = 1; // At least one chunk for empty files
+        }
+
         createMetadataService.createMetadata(fileId,
                 file.getOriginalFilename(),
                 file.getSize(),
-                LocalDateTime.now());
+                LocalDateTime.now(),
+                totalChunks);
 
         try (InputStream inputStream = file.getInputStream()) {
             int bytesRead;
@@ -112,7 +121,8 @@ public class FileUploadController {
         // Filter out the initial metadata record (chunkId=0 with no worker assignment)
         // and sort remaining by chunkId
         List<FileMetadata> chunkRecords = metadataList.stream()
-                .filter(m -> m.getWorkerId() != null && !m.getWorkerId().isEmpty())
+                .filter(m -> m.getWorkerId() != null && !m.getWorkerId().isEmpty()
+                        && m.getWorkerAddress() != null && !m.getWorkerAddress().isEmpty())
                 .sorted(Comparator.comparingInt(FileMetadata::getChunkId))
                 .toList();
 

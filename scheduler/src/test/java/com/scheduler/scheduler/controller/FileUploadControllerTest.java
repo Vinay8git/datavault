@@ -74,7 +74,7 @@ class FileUploadControllerTest {
         MockMultipartFile file = TestDataBuilder.createMockMultipartFile("test.txt", content);
 
         FileMetadata mockMetadata = TestDataBuilder.createFileMetadata("file-123", "test.txt", 0);
-        when(createMetadataService.createMetadata(anyString(), eq("test.txt"), eq((long) content.length), any(LocalDateTime.class)))
+        when(createMetadataService.createMetadata(anyString(), eq("test.txt"), eq((long) content.length), any(LocalDateTime.class), anyInt()))
                 .thenReturn(mockMetadata);
 
         // Act & Assert
@@ -84,7 +84,7 @@ class FileUploadControllerTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Upload successful")));
 
         // Verify interactions
-        verify(createMetadataService, times(1)).createMetadata(anyString(), eq("test.txt"), eq((long) content.length), any(LocalDateTime.class));
+        verify(createMetadataService, times(1)).createMetadata(anyString(), eq("test.txt"), eq((long) content.length), any(LocalDateTime.class), anyInt());
         verify(rabbitTemplate, atLeastOnce()).convertAndSend(anyString(), any(Object.class));
     }
 
@@ -98,7 +98,7 @@ class FileUploadControllerTest {
         MockMultipartFile emptyFile = TestDataBuilder.createEmptyMockMultipartFile("empty.txt");
 
         FileMetadata mockMetadata = TestDataBuilder.createFileMetadata("file-456", "empty.txt", 0);
-        when(createMetadataService.createMetadata(anyString(), eq("empty.txt"), eq(0L), any(LocalDateTime.class)))
+        when(createMetadataService.createMetadata(anyString(), eq("empty.txt"), eq(0L), any(LocalDateTime.class), anyInt()))
                 .thenReturn(mockMetadata);
 
         // Act & Assert
@@ -108,7 +108,7 @@ class FileUploadControllerTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Upload successful. Total chunks sent: 0")));
 
         // Verify metadata creation was called but no chunks were sent
-        verify(createMetadataService, times(1)).createMetadata(anyString(), eq("empty.txt"), eq(0L), any(LocalDateTime.class));
+        verify(createMetadataService, times(1)).createMetadata(anyString(), eq("empty.txt"), eq(0L), any(LocalDateTime.class), anyInt());
         verify(rabbitTemplate, never()).convertAndSend(anyString(), any(Object.class));
     }
 
@@ -125,7 +125,7 @@ class FileUploadControllerTest {
         MockMultipartFile largeFile = TestDataBuilder.createMockMultipartFile("large.txt", largeContent);
 
         FileMetadata mockMetadata = TestDataBuilder.createFileMetadata("file-789", "large.txt", 0);
-        when(createMetadataService.createMetadata(anyString(), eq("large.txt"), eq((long) largeContent.length), any(LocalDateTime.class)))
+        when(createMetadataService.createMetadata(anyString(), eq("large.txt"), eq((long) largeContent.length), any(LocalDateTime.class), anyInt()))
                 .thenReturn(mockMetadata);
 
         // Act & Assert
