@@ -27,4 +27,16 @@ public class CreateMetadataService {
 
         return fileMetadataRepository.save(metadata);
     }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public FileMetadata createMetadata(String fileId, String filename, long size, LocalDateTime uploadTime, int totalChunks) {
+        Objects.requireNonNull(fileId, "fileId must not be null");
+        Objects.requireNonNull(filename, "filename must not be null");
+
+        FileMetadata metadata = new FileMetadata(fileId, filename, size);
+        metadata.setUploadTime(uploadTime);
+        metadata.setTotalChunks(totalChunks);
+
+        return fileMetadataRepository.save(metadata);
+    }
 }

@@ -112,7 +112,7 @@ class WorkerApplicationTest {
         assertNotNull(consumer, "ChunkTaskConsumer should exist");
 
         // Act - Get the handleTask method
-        Method handleTaskMethod = ChunkTaskConsumer.class.getMethod("handleTask", String.class);
+        Method handleTaskMethod = ChunkTaskConsumer.class.getMethod("handleTask", com.worker.worker.model.ChunkTask.class);
 
         // Assert - Verify @RabbitListener annotation
         assertTrue(handleTaskMethod.isAnnotationPresent(RabbitListener.class), 

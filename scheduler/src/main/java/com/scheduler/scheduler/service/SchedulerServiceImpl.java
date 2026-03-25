@@ -128,6 +128,21 @@ public class SchedulerServiceImpl extends SchedulerServiceImplBase {
             return;
         }
 
+        // Persist the chunk-to-worker assignment
+        FileMetadata chunkMetadata = new FileMetadata();
+        chunkMetadata.setFileId(fileId);
+        chunkMetadata.setChunkId(chunkId);
+        chunkMetadata.setWorkerId(selectedWorkerId);
+        chunkMetadata.setWorkerAddress(address);
+        // Look up the original file metadata (chunkId=0) to get the filename
+        List<FileMetadata> existingRecords = fileMetadataRepository.findAllByFileId(fileId);
+        if (!existingRecords.isEmpty()) {
+            FileMetadata original = existingRecords.get(0);
+            chunkMetadata.setFilename(original.getFilename());
+            chunkMetadata.setSize(original.getSize());
+        }
+        fileMetadataRepository.save(chunkMetadata);
+
         AssignWorkerResponse response = AssignWorkerResponse.newBuilder()
                 .setAssignedWorkerId(selectedWorkerId)
                 .setAssignedWorkerAddress(address)

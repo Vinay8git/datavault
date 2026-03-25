@@ -19,6 +19,7 @@ public class FileMetadata {
     private String workerId;
     private String workerAddress;
     private LocalDateTime uploadTime;
+    private int totalChunks;
 
     public FileMetadata() {
     }
@@ -83,5 +84,13 @@ public class FileMetadata {
 
     public void setUploadTime(LocalDateTime uploadTime) {
         this.uploadTime = uploadTime;
+    }
+
+    public int getTotalChunks() {
+        return totalChunks;
+    }
+
+    public void setTotalChunks(int totalChunks) {
+        this.totalChunks = totalChunks;
     }
 }

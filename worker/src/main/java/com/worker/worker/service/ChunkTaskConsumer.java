@@ -8,7 +8,6 @@ import java.util.Base64;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.ByteString;
 import com.worker.worker.model.ChunkTask;
 
@@ -24,8 +23,15 @@ import io.grpc.ManagedChannelBuilder;
 @Service
 public class ChunkTaskConsumer {
     private final SchedulerServiceGrpc.SchedulerServiceBlockingStub schedulerStub;
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    private final String currentWorkerId = System.getenv("WORKER_ID");
+    private final String currentWorkerId = resolveWorkerId();
+
+    private static String resolveWorkerId() {
+        String id = System.getenv("WORKER_ID");
+        if (id == null || id.isEmpty()) {
+            id = System.getProperty("WORKER_ID");
+        }
+        return id;
+    }
 
     public ChunkTaskConsumer(
             SchedulerServiceGrpc.SchedulerServiceBlockingStub schedulerStub) {
@@ -33,10 +39,8 @@ public class ChunkTaskConsumer {
     }
 
     @RabbitListener(queues = "fileChunksQueue")
-    public void handleTask(String message) {
+    public void handleTask(ChunkTask task) {
         try {
-
-            ChunkTask task = objectMapper.readValue(message, ChunkTask.class);
             System.out.println("Received chunk task from queue: " + task);
 
             byte[] data = Base64.getDecoder().decode(task.getEncodedData());
@@ -110,7 +114,7 @@ public class ChunkTaskConsumer {
             if (!baseDir.exists()) {
                 baseDir.mkdirs();
             }
-            File chunkFile = new File(baseDir, "chunk_" + chunkId + ".chunk");
+            File chunkFile = new File(baseDir, fileId + "_" + chunkId + ".chunk");
             try (FileOutputStream fos = new FileOutputStream(chunkFile)) {
                 fos.write(data);
             }
