@@ -1,15 +1,15 @@
 package com.scheduler.scheduler.controller;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -31,8 +31,11 @@ import com.scheduler.scheduler.model.FileMetadata;
 import com.scheduler.scheduler.repository.FileMetadataRepository;
 import com.scheduler.scheduler.service.CreateMetadataService;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
+import io.datavault.common.grpc.RetrieveChunkRequest;
+import io.datavault.common.grpc.RetrieveChunkResponse;
+import io.datavault.common.grpc.WorkerServiceGrpc;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 
 @RestController
 @RequestMapping("/files")
@@ -40,9 +43,6 @@ public class FileUploadController {
 
     @Autowired
     private FileMetadataRepository metadataRepository;
-
-    @PersistenceContext
-    private EntityManager em;
 
     @Autowired
     private RabbitTemplate rabbitTemplate;
@@ -56,10 +56,19 @@ public class FileUploadController {
         int chunkSize = 128 * 1024;
         byte[] buffer = new byte[chunkSize];
         int chunkId = 0;
+
+        // Compute total number of chunks upfront
+        long fileSize = file.getSize();
+        int totalChunks = (int) Math.ceil((double) fileSize / chunkSize);
+        if (totalChunks == 0) {
+            totalChunks = 1; // At least one chunk for empty files
+        }
+
         createMetadataService.createMetadata(fileId,
                 file.getOriginalFilename(),
                 file.getSize(),
-                LocalDateTime.now());
+                LocalDateTime.now(),
+                totalChunks);
 
         try (InputStream inputStream = file.getInputStream()) {
             int bytesRead;
@@ -108,20 +117,61 @@ public class FileUploadController {
         if (metadataList.isEmpty()) {
             throw new FileNotFoundException("No metadata found for file: " + fileId);
         }
-        metadataList.sort(Comparator.comparingInt(FileMetadata::getChunkId));
+
+        // Filter out the initial metadata record (chunkId=0 with no worker assignment)
+        // and sort remaining by chunkId
+        List<FileMetadata> chunkRecords = metadataList.stream()
+                .filter(m -> m.getWorkerId() != null && !m.getWorkerId().isEmpty()
+                        && m.getWorkerAddress() != null && !m.getWorkerAddress().isEmpty())
+                .sorted(Comparator.comparingInt(FileMetadata::getChunkId))
+                .toList();
+
+        if (chunkRecords.isEmpty()) {
+            throw new FileNotFoundException("No chunk assignments found for file: " + fileId);
+        }
+
+        // Cache gRPC channels per worker address to avoid creating duplicate connections
+        Map<String, ManagedChannel> channelCache = new HashMap<>();
+        Map<String, WorkerServiceGrpc.WorkerServiceBlockingStub> stubCache = new HashMap<>();
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        for (FileMetadata metadata : metadataList) {
-            int chunkId = metadata.getChunkId();
-            String workerId = metadata.getWorkerId();
+        try {
+            for (FileMetadata chunkMeta : chunkRecords) {
+                int chunkId = chunkMeta.getChunkId();
+                String workerId = chunkMeta.getWorkerId();
+                String workerAddress = chunkMeta.getWorkerAddress();
 
-            File chunkFile = new File("app/storage" + workerId + "/" + fileId + "_" + chunkId + ".chunk");
+                // Get or create a gRPC stub for this worker
+                WorkerServiceGrpc.WorkerServiceBlockingStub stub = stubCache.get(workerAddress);
+                if (stub == null) {
+                    ManagedChannel channel = ManagedChannelBuilder.forTarget(workerAddress)
+                            .usePlaintext()
+                            .build();
+                    channelCache.put(workerAddress, channel);
+                    stub = WorkerServiceGrpc.newBlockingStub(channel);
+                    stubCache.put(workerAddress, stub);
+                }
 
-            if (!chunkFile.exists()) {
-                throw new FileNotFoundException("Missing chunk file: " + chunkFile.getAbsolutePath());
+                RetrieveChunkRequest request = RetrieveChunkRequest.newBuilder()
+                        .setWorkerId(workerId)
+                        .setFileId(fileId)
+                        .setChunkId(chunkId)
+                        .build();
+
+                RetrieveChunkResponse response = stub.retrieveChunk(request);
+
+                if (!response.getFound()) {
+                    throw new FileNotFoundException(
+                            "Chunk " + chunkId + " not found on worker " + workerId + " at " + workerAddress);
+                }
+
+                outputStream.write(response.getChunkData().toByteArray());
             }
-
-            Files.copy(chunkFile.toPath(), outputStream);
+        } finally {
+            // Clean up all gRPC channels
+            for (ManagedChannel channel : channelCache.values()) {
+                channel.shutdownNow();
+            }
         }
         return outputStream.toByteArray();
     }

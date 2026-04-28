@@ -1,10 +1,10 @@
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 
-const StorageCard = () => {
-  const percentage = 65;
-  const usedStorage = 82;
+const StorageCard = (props) => {
+  const usedStorage = props.used.split(" ")[0];
   const totalStorage = 128;
+  const percentage = Math.round(usedStorage/totalStorage * 100);
 
   return (
     <div className="bg-red-400 text-white rounded-xl p-6 w-80 shadow-lg">

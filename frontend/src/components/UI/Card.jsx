@@ -5,6 +5,7 @@ import { PiDotsThreeOutlineVerticalLight } from "react-icons/pi";
 import { IoImages } from "react-icons/io5";
 import { RiFileVideoFill } from "react-icons/ri";
 import { FaFileCircleQuestion } from "react-icons/fa6";
+import FileOptions from "./FileOptions";
 
 const Card = (props) => {
   let logo;
@@ -31,7 +32,7 @@ const Card = (props) => {
           </div>
           <div className="flex flex-col items-end w-fit justify-center gap-5 h-full ">
             <div className="text-3xl items-right w-fit cursor-pointer">
-              <PiDotsThreeOutlineVerticalLight/>
+              <FileOptions/>
             </div>
             <h2 className="font-semibold">{props.size}</h2>
           </div>
