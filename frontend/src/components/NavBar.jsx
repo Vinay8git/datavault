@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { CiSearch } from "react-icons/ci";
 import UploadTab from "./UI/UploadTab";
 import "./NavBar.css";
+import { loginWithMetaMask } from "../services/authService";
 
 const NavBar = (props) => {
   
@@ -27,9 +28,17 @@ const NavBar = (props) => {
         />
       </div>
       <div className="right flex items-center justify-center w-fit gap-3 mr-7">
+
+        <button
+          onClick={loginWithMetaMask}
+          className="bg-orange-600 text-white px-4 py-2 rounded-full hover:opacity-80 transition"
+        >
+          Connect Wallet
+        </button>
+
+        {/* 📤 Upload */}
         <button
           onClick={() => {
-            // props.isUpload();
             navigate('/upload')
           }}
           className="active:bg-orange-300 transition-all ease-in flex justify-center items-center text-xl hover:cursor-pointer gap-1 mr-3 bg-orange-600 text-white p-2 rounded-full"
@@ -37,9 +46,12 @@ const NavBar = (props) => {
           <MdCloudUpload className="w-fit inline-block text-white!" />
           Upload
         </button>
+
+        {/* 🚪 Logout (we will fix later) */}
         <Link to="/" className="text-2xl">
           <CiLogout />
         </Link>
+
       </div>
     </div>
   );
