@@ -11,7 +11,7 @@ import calculateStorage from "../components/Utility/calculateStorage.jsx";
 
 import UploadTab from "../components/UI/UploadTab";
 
-const Dashboard = () => {
+const Dashboard = ({ user, setUser }) => {
   const data = [
     {
       title: "Resume.pdf",
@@ -155,7 +155,11 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard w-full relative">
-      <NavBar isUpload={HandleUploadTab} />
+      <NavBar
+        user={user}
+        setUser={setUser}
+        isUpload={HandleUploadTab}
+      />
       <div className="flex">
         <LeftNav changeTab={HandleActiveTab} />
         <Center>
