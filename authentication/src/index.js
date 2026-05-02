@@ -106,6 +106,16 @@ app.get("/auth/me", (req, res) => {
 });
 
 
+app.post("/auth/logout", (req, res) => {
+
+  req.session = null;
+
+  return res.json({
+    success: true,
+  });
+
+});
+
 
 const PORT = process.env.PORT || 4000;
 

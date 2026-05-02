@@ -8,11 +8,14 @@ import FileSharePro from './pages/UploadFile';
 import { checkAuth } from "./services/authCheck";
 
 const App = () => {
+
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+
     async function init() {
+
       const res = await checkAuth();
 
       if (res.authenticated) {
@@ -23,6 +26,7 @@ const App = () => {
     }
 
     init();
+
   }, []);
 
   if (loading) {
@@ -31,11 +35,41 @@ const App = () => {
 
   return (
     <Router>
+
       <Routes>
-        <Route path="/" element={<HomePage user={user} />} />
-        <Route path="/dashboard" element={<Dashboard user={user} />} />
-        <Route path="/Upload" element={<FileSharePro user={user} />} />
+
+        <Route
+          path="/"
+          element={
+            <HomePage
+              user={user}
+              setUser={setUser}
+            />
+          }
+        />
+
+        <Route
+          path="/dashboard"
+          element={
+            <Dashboard
+              user={user}
+              setUser={setUser}
+            />
+          }
+        />
+
+        <Route
+          path="/upload"
+          element={
+            <FileSharePro
+              user={user}
+              setUser={setUser}
+            />
+          }
+        />
+
       </Routes>
+
     </Router>
   );
 };
