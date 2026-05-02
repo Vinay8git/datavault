@@ -1,8 +1,8 @@
-const Center = (props) => {
+const Center = ({ children }) => {
   return (
-    <div className="w-full h-136.5 flex items-center justify-center gap-10 bg-rose-300">
-      {props.children}
-    </div>
+    <main className="min-h-[72vh] w-full rounded-2xl border border-slate-400/20 bg-slate-950/30 p-3 md:p-4">
+      {children}
+    </main>
   );
 };
 

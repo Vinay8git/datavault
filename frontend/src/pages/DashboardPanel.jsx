@@ -1,12 +1,12 @@
 import RecentFiles from "../components/RecentFiles.jsx";
 import Overview from "./Overview.jsx";
 
-const DashboardPanel = (props) => {
+const DashboardPanel = ({ data }) => {
   return (
-    <div className=" w-full h-full flex items-center justify-center gap-10">
-      <Overview  data={props.data} />
-      <RecentFiles />
-    </div>
+    <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,1fr)]">
+      <Overview data={data} />
+      <RecentFiles files={data.slice(0, 8)} />
+    </section>
   );
 };
 
