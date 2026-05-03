@@ -1,6 +1,20 @@
+import { motion } from "framer-motion";
 import StorageCategoryCard from "../components/StorageCategoryCard.jsx";
 import StorageCard from "../components/UI/StorageCard.jsx";
 import calculateStorage from "../components/Utility/calculateStorage.jsx";
+
+const grid = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08, delayChildren: 0.12 },
+  },
+};
+
+const cell = {
+  hidden: { opacity: 0, y: 10, scale: 0.985 },
+  show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.32, ease: "easeOut" } },
+};
 
 const Overview = ({ data }) => {
   const result = calculateStorage(data);
@@ -14,32 +28,25 @@ const Overview = ({ data }) => {
 
       <StorageCard used={result.used} />
 
-      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <StorageCategoryCard
-          type="document"
-          storage={result.document}
-          title="Documents"
-          lastUpdate="10:15am, 10 Oct"
-        />
-        <StorageCategoryCard
-          type="image"
-          storage={result.image}
-          title="Images"
-          lastUpdate="10:45am, 18 Sep"
-        />
-        <StorageCategoryCard
-          type="media"
-          storage={result.media}
-          title="Media"
-          lastUpdate="10:15am, 10 Oct"
-        />
-        <StorageCategoryCard
-          type="other"
-          storage={result.other}
-          title="Others"
-          lastUpdate="10:15am, 10 Oct"
-        />
-      </div>
+      <motion.div
+        className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2"
+        variants={grid}
+        initial="hidden"
+        animate="show"
+      >
+        <motion.div variants={cell}>
+          <StorageCategoryCard type="document" storage={result.document} title="Documents" lastUpdate="10:15am, 10 Oct" />
+        </motion.div>
+        <motion.div variants={cell}>
+          <StorageCategoryCard type="image" storage={result.image} title="Images" lastUpdate="10:45am, 18 Sep" />
+        </motion.div>
+        <motion.div variants={cell}>
+          <StorageCategoryCard type="media" storage={result.media} title="Media" lastUpdate="10:15am, 10 Oct" />
+        </motion.div>
+        <motion.div variants={cell}>
+          <StorageCategoryCard type="other" storage={result.other} title="Others" lastUpdate="10:15am, 10 Oct" />
+        </motion.div>
+      </motion.div>
     </section>
   );
 };

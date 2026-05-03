@@ -1,4 +1,6 @@
+import { motion } from "framer-motion";
 import { ImageIcon, FolderOpen, Video, ChartPie } from "lucide-react";
+import AnimatedCounter from "./AnimatedCounter";
 
 const iconMap = {
   document: FolderOpen,
@@ -19,17 +21,25 @@ const StorageCategoryCard = ({ type, storage, title, lastUpdate }) => {
   const tint = tintMap[type] || tintMap.other;
 
   return (
-    <article
-      className={`rounded-xl border bg-gradient-to-br p-4 shadow-lg shadow-slate-950/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl ${tint}`}
+    <motion.article
+      className={`rounded-xl border bg-gradient-to-br p-4 shadow-lg shadow-slate-950/20 ${tint}`}
+      whileHover={{ y: -3, scale: 1.01 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
     >
-      <div className="mb-3 inline-flex rounded-lg border border-white/20 bg-white/10 p-2 text-blue-100">
+      <motion.div
+        className="mb-3 inline-flex rounded-lg border border-white/20 bg-white/10 p-2 text-blue-100"
+        whileHover={{ rotate: -4, scale: 1.06 }}
+        transition={{ type: "spring", stiffness: 260, damping: 16 }}
+      >
         <Icon className="h-4 w-4" />
-      </div>
+      </motion.div>
 
-      <p className="text-lg font-bold text-white">{storage}</p>
+      <p className="text-lg font-bold text-white">
+        <AnimatedCounter value={storage} duration={900} decimals={2} />
+      </p>
       <p className="text-sm font-medium text-blue-100/85">{title}</p>
       <p className="mt-2 text-xs text-blue-200/70">Updated {lastUpdate}</p>
-    </article>
+    </motion.article>
   );
 };
 
