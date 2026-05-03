@@ -1,77 +1,65 @@
 import { useState, useRef, useEffect } from "react";
 import { FiMoreVertical } from "react-icons/fi";
 
-const FileOptions = ({ onRename, onDetails, onShare, onDownload, onDelete }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const menuRef = useRef();
+const noop = () => {};
 
-  // Close menu when clicking outside
+const FileOptions = ({
+  onRename = noop,
+  onDetails = noop,
+  onShare = noop,
+  onDownload = noop,
+  onDelete = noop,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef(null);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setIsOpen(false);
       }
     };
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") setIsOpen(false);
+    };
+
     document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
     };
   }, []);
+
+  const handleAction = (fn) => {
+    setIsOpen(false);
+    fn();
+  };
 
   return (
     <div className="relative inline-block text-left" ref={menuRef}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="p-2 rounded-full hover:bg-gray-200 transition"
+        onClick={() => setIsOpen((v) => !v)}
+        className="rounded-full p-2 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60"
+        aria-label="Open file options"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
       >
-        <FiMoreVertical size={20} />
+        <FiMoreVertical size={18} />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 origin-top-right bg-white border border-gray-200 divide-y divide-gray-100 rounded-lg shadow-lg z-50">
-          <button
-            onClick={() => {
-              setIsOpen(false);
-              onRename();
-            }}
-            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
-          >
-            Rename
-          </button>
-          <button
-            onClick={() => {
-              setIsOpen(false);
-              onDetails();
-            }}
-            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
-          >
-            Details
-          </button>
-          <button
-            onClick={() => {
-              setIsOpen(false);
-              onShare();
-            }}
-            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
-          >
-            Share
-          </button>
-          <button
-            onClick={() => {
-              setIsOpen(false);
-              onDownload();
-            }}
-            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
-          >
-            Download
-          </button>
-          <button
-            onClick={() => {
-              setIsOpen(false);
-              onDelete();
-            }}
-            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
-          >
+        <div
+          className="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-lg border border-slate-300/20 bg-slate-900/95 shadow-xl"
+          role="menu"
+        >
+          <button onClick={() => handleAction(onRename)} className="file-option-item" role="menuitem">Rename</button>
+          <button onClick={() => handleAction(onDetails)} className="file-option-item" role="menuitem">Details</button>
+          <button onClick={() => handleAction(onShare)} className="file-option-item" role="menuitem">Share</button>
+          <button onClick={() => handleAction(onDownload)} className="file-option-item" role="menuitem">Download</button>
+          <button onClick={() => handleAction(onDelete)} className="file-option-item text-rose-300" role="menuitem">
             Move to Trash
           </button>
         </div>

@@ -16,6 +16,7 @@
     "cors": "^2.8.5",
     "drive-frontend": "file:",
     "ethers": "^6.16.0",
+    "framer-motion": "^12.38.0",
     "gsap": "^3.12.7",
     "lucide-react": "^0.483.0",
     "react": "^19.0.0",

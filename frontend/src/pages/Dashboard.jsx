@@ -8,6 +8,7 @@ import ImagePanel from "./ImagePanel.jsx";
 import MediaPanel from "./MediaPanel.jsx";
 import OtherPanel from "./OtherPanel.jsx";
 import UploadTab from "../components/UI/UploadTab";
+import SiteFooter from "../components/layout/SiteFooter";
 
 const Dashboard = ({ user, setUser }) => {
   const data = useMemo(
@@ -40,12 +41,13 @@ const Dashboard = ({ user, setUser }) => {
   const [activeTab, setActiveTab] = useState("dashboard");
 
   return (
+    
     <div className="dashboard min-h-screen w-full relative px-3 pb-5 md:px-5">
       <NavBar user={user} setUser={setUser} isUpload={() => setIsUploadTab(true)} />
 
       <div className="mt-2 grid grid-cols-1 gap-3 lg:grid-cols-[250px_minmax(0,1fr)]">
         <LeftNav activeTab={activeTab} changeTab={setActiveTab} />
-
+        
         <Center>
           {activeTab === "dashboard" && <DashboardPanel data={data} />}
           {activeTab === "document" && <DocumentPanel data={data} />}
@@ -54,7 +56,7 @@ const Dashboard = ({ user, setUser }) => {
           {activeTab === "other" && <OtherPanel data={data} />}
         </Center>
       </div>
-
+      <SiteFooter />
       <UploadTab isActive={isUploadTab} closing={() => setIsUploadTab(false)} />
     </div>
   );

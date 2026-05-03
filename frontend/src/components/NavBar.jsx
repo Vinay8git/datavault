@@ -7,10 +7,12 @@ import "./NavBar.css";
 
 const BACKEND_URL = "http://localhost:4000";
 
-const NavBar = ({ user, setUser }) => {
+const NavBar = ({ user, setUser, className = "" }) => {
   const navigate = useNavigate();
 
   async function handleLogout() {
+    if (!user) return;
+
     await fetch(`${BACKEND_URL}/auth/logout`, {
       method: "POST",
       credentials: "include",
@@ -25,7 +27,7 @@ const NavBar = ({ user, setUser }) => {
     : null;
 
   return (
-    <div className="navbar-wrap">
+    <div className={`navbar-wrap ${className}`}>
       <header className="navbar flex items-center justify-between px-4 md:px-5">
         {/* Left: Brand */}
         <Link to="/dashboard" className="brand-logo whitespace-nowrap">
@@ -66,7 +68,9 @@ const NavBar = ({ user, setUser }) => {
 
           <button
             onClick={handleLogout}
-            className="logout-btn p-2 text-2xl"
+            disabled={!user}
+            aria-disabled={!user}
+            className={`logout-btn p-2 text-2xl ${!user ? "opacity-50 cursor-not-allowed" : ""}`}
             aria-label="Logout"
             title="Logout"
           >

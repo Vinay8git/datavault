@@ -3,122 +3,202 @@ import cors from "cors";
 import cookieSession from "cookie-session";
 import dotenv from "dotenv";
 import { SiweMessage } from "siwe";
-import { generateNonce, getNonce, deleteNonce } from "./nonceStore.js";
+import { generateNonce, getNonce, deleteNonce, cleanupExpiredNonces } from "./nonceStore.js";
 
 dotenv.config();
 
 const app = express();
 
+const PORT = Number(process.env.PORT || 4000);
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || "http://localhost:5173";
+const SESSION_SECRET = process.env.SESSION_SECRET;
+const NODE_ENV = process.env.NODE_ENV || "development";
+const IS_PROD = NODE_ENV === "production";
+const SESSION_MAX_AGE_MS = Number(process.env.SESSION_MAX_AGE_MS || 1000 * 60 * 60 * 8); // 8h
+
+if (!SESSION_SECRET || SESSION_SECRET.length < 32) {
+  throw new Error("SESSION_SECRET must be set and at least 32 characters.");
+}
+
+app.set("trust proxy", 1);
 app.use(express.json());
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: FRONTEND_ORIGIN,
     credentials: true,
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type"],
   })
 );
 
-// Session setup
 app.use(
   cookieSession({
-    name: "session",
-    keys: [process.env.SESSION_SECRET || "supersecretkey"],
+    name: "dv_session",
+    keys: [SESSION_SECRET],
     httpOnly: true,
-    secure: false, 
-    sameSite: "lax",
+    secure: IS_PROD, // true in prod (HTTPS)
+    sameSite: IS_PROD ? "none" : "lax",
+    maxAge: SESSION_MAX_AGE_MS,
   })
 );
 
-app.get("/", (req, res) => {
+app.get("/", (_req, res) => {
   res.send("Auth Service Running..");
 });
 
-//Nonce Route
+// Health-check for auth subsystem
+app.get("/auth/health", (_req, res) => {
+  return res.json({
+    ok: true,
+    service: "auth",
+    env: NODE_ENV,
+  });
+});
+
+// Nonce Route
 app.get("/auth/nonce", (req, res) => {
-  const { address } = req.query;
+  cleanupExpiredNonces();
+
+  const address = String(req.query.address || "").trim();
 
   if (!address) {
-    return res.status(400).json({ error: "Address is required" });
+    return res.status(400).json({
+      success: false,
+      code: "MISSING_ADDRESS",
+      message: "Address is required",
+    });
   }
 
   const nonce = generateNonce(address);
 
-  res.json({ nonce });
+  return res.json({
+    success: true,
+    nonce,
+  });
 });
 
 // Verify Route
 app.post("/auth/verify", async (req, res) => {
   try {
-    const { message, signature } = req.body;
+    cleanupExpiredNonces();
+
+    const { message, signature } = req.body || {};
 
     if (!message || !signature) {
-      return res.status(400).json({ error: "Missing message or signature" });
+      return res.status(400).json({
+        success: false,
+        code: "MISSING_PAYLOAD",
+        message: "Missing message or signature",
+      });
     }
 
-    // Parse SIWE message
     const siweMessage = new SiweMessage(message);
+    const { address, nonce, domain, uri } = siweMessage;
 
-    const { address, nonce } = siweMessage;
+    if (!address || !nonce || !domain || !uri) {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_SIWE_MESSAGE",
+        message: "SIWE message missing required fields",
+      });
+    }
 
-    // Get stored nonce
+    // Domain binding check
+    const expectedHost = new URL(FRONTEND_ORIGIN).host;
+    if (domain !== expectedHost) {
+      return res.status(401).json({
+        success: false,
+        code: "DOMAIN_MISMATCH",
+        message: "SIWE domain mismatch",
+      });
+    }
+
+    // URI binding check
+    const expectedOrigin = new URL(FRONTEND_ORIGIN).origin;
+    if (uri !== expectedOrigin) {
+      return res.status(401).json({
+        success: false,
+        code: "URI_MISMATCH",
+        message: "SIWE URI mismatch",
+      });
+    }
+
     const stored = getNonce(address);
 
     if (!stored) {
-      return res.status(400).json({ error: "Nonce not found" });
+      return res.status(400).json({
+        success: false,
+        code: "NONCE_NOT_FOUND",
+        message: "Nonce not found or expired",
+      });
     }
 
-    // Check nonce match
     if (stored.nonce !== nonce) {
-      return res.status(400).json({ error: "Invalid nonce" });
+      return res.status(400).json({
+        success: false,
+        code: "NONCE_INVALID",
+        message: "Invalid nonce",
+      });
     }
 
-    // Verify signature
     const result = await siweMessage.verify({ signature });
 
     if (!result.success) {
-      return res.status(401).json({ error: "Invalid signature" });
+      return res.status(401).json({
+        success: false,
+        code: "INVALID_SIGNATURE",
+        message: "Invalid signature",
+      });
     }
 
-    // Delete nonce: one-time use
+    // one-time nonce
     deleteNonce(address);
 
-    // Create session
     req.session.user = {
       address,
+      authenticatedAt: Date.now(),
     };
 
-    return res.json({ success: true, address });
+    return res.json({
+      success: true,
+      user: req.session.user,
+    });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Verification failed" });
+    console.error("SIWE verify error:", err);
+    return res.status(500).json({
+      success: false,
+      code: "VERIFY_FAILED",
+      message: "Verification failed",
+    });
   }
 });
 
 app.get("/auth/me", (req, res) => {
-  if (!req.session || !req.session.user) {
-    return res.status(401).json({ authenticated: false });
+  if (!req.session?.user) {
+    return res.status(401).json({
+      success: false,
+      authenticated: false,
+      code: "UNAUTHENTICATED",
+    });
   }
 
   return res.json({
+    success: true,
     authenticated: true,
     user: req.session.user,
   });
 });
 
-
 app.post("/auth/logout", (req, res) => {
-
   req.session = null;
 
   return res.json({
     success: true,
+    message: "Logged out",
   });
-
 });
 
-
-const PORT = process.env.PORT || 4000;
-
 app.listen(PORT, () => {
-  console.log(`Auth service running on port ${PORT}`);
+  console.log(`Auth service running on port ${PORT} (${NODE_ENV})`);
 });
