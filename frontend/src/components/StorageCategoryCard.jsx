@@ -1,24 +1,36 @@
-import { ImageIcon, FolderOpen, Video, ChartPie } from 'lucide-react';
+import { ImageIcon, FolderOpen, Video, ChartPie } from "lucide-react";
 
-const StorageCategoryCard = (props) => {
+const iconMap = {
+  document: FolderOpen,
+  image: ImageIcon,
+  media: Video,
+  other: ChartPie,
+};
+
+const tintMap = {
+  document: "from-blue-500/30 to-indigo-500/30 border-blue-300/20",
+  image: "from-cyan-500/30 to-sky-500/30 border-cyan-300/20",
+  media: "from-violet-500/30 to-fuchsia-500/30 border-violet-300/20",
+  other: "from-slate-500/30 to-zinc-500/30 border-slate-300/20",
+};
+
+const StorageCategoryCard = ({ type, storage, title, lastUpdate }) => {
+  const Icon = iconMap[type] || ChartPie;
+  const tint = tintMap[type] || tintMap.other;
+
   return (
-    <div className="bg-white rounded-xl shadow-lg p-3 w-45 flex flex-col items-center h-35">
-      <div className="relative -top-8">
-        <div className="bg-blue-400 rounded-full p-3 flex items-center justify-center shadow-md">
-          {props.type == "document" ? <FolderOpen className="text-white w-6 h-6" /> : ""}
-          {props.type == "image" ? <ImageIcon className="text-white w-6 h-6" /> : ""}
-          {props.type == "media" ? <Video className="text-white w-6 h-6" /> : ""}
-          {props.type == "other" ? <ChartPie className="text-white w-6 h-6" /> : ""}
-        </div>
+    <article
+      className={`rounded-xl border bg-gradient-to-br p-4 shadow-lg shadow-slate-950/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl ${tint}`}
+    >
+      <div className="mb-3 inline-flex rounded-lg border border-white/20 bg-white/10 p-2 text-blue-100">
+        <Icon className="h-4 w-4" />
       </div>
-      <div className="-mt-8 text-center">
-        <p className="text-lg font-semibold">{props.storage}</p>
-        <p className="text-gray-700 font-medium">{props.title}</p>
-        <p className="text-gray-400 text-sm mt-1">Last update</p>
-        <p className="text-gray-500 text-sm">{props.lastUpdate}</p>
-      </div>
-    </div>
-  );    
+
+      <p className="text-lg font-bold text-white">{storage}</p>
+      <p className="text-sm font-medium text-blue-100/85">{title}</p>
+      <p className="mt-2 text-xs text-blue-200/70">Updated {lastUpdate}</p>
+    </article>
+  );
 };
 
 export default StorageCategoryCard;

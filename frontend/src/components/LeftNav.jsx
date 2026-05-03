@@ -1,110 +1,44 @@
 import { RiLayout2Fill } from "react-icons/ri";
 import { IoDocumentSharp } from "react-icons/io5";
-import { FaImages } from "react-icons/fa6";
-import { FaVideo } from "react-icons/fa";
+import { FaImages, FaVideo } from "react-icons/fa6";
 import { AiFillPieChart } from "react-icons/ai";
-import { useState } from "react";
 
-const LeftNav = (props) => {
-  const [isDash, setIsDash] = useState(true);
-  const [isDocument, setIsDocument] = useState(false);
-  const [isImages, setIsImages] = useState(false);
-  const [isMedia, setIsMedia] = useState(false);
-  const [isOthers, setIsOthers] = useState(false);
+const tabs = [
+  { id: "dashboard", label: "Dashboard", icon: RiLayout2Fill },
+  { id: "document", label: "Documents", icon: IoDocumentSharp },
+  { id: "image", label: "Images", icon: FaImages },
+  { id: "media", label: "Media", icon: FaVideo },
+  { id: "other", label: "Others", icon: AiFillPieChart },
+];
 
+const LeftNav = ({ changeTab, activeTab }) => {
   return (
-    <div className="leftnav w-75 pt-5 h-136.5 bg-blue-200  flex flex-col gap-4 items-center text-2xl shadow-2xl">
-      <button
-        onClick={() => {
-          setIsDash(true);
-          setIsDocument(false);
-          setIsImages(false);
-          setIsMedia(false);
-          setIsOthers(false);
-          props.changeTab("dashboard");
-        }}
-        className={
-          isDash
-            ? "p-4 w-50 h-10 shadow-lg text-white bg-orange-600 transition-all mb-4 rounded-full hover:cursor-pointer flex items-center justify-center gap-2"
-            : "p-4 w-50 h-10  group focus:shadow-lg text-orange-600 transition-all mb-4 rounded-full hover:cursor-pointer flex items-center justify-center gap-2"
-        }
-      >
-        <RiLayout2Fill />
-        <p className="drop-shadow-lg">Dashboard</p>
-      </button>
-      <button
-        onClick={() => {
-          setIsDash(false);
-          setIsDocument(true);
-          setIsImages(false);
-          setIsMedia(false);
-          setIsOthers(false);
-          props.changeTab("document");
-        }}
-        className={
-          isDocument
-            ? "p-4 w-50 h-10 shadow-lg text-white bg-orange-600 transition-all mb-4 rounded-full hover:cursor-pointer flex items-center justify-center gap-2"
-            : "p-4 w-50 h-10  group focus:shadow-lg text-orange-600 transition-all mb-4 rounded-full hover:cursor-pointer flex items-center justify-center gap-2"
-        }
-      >
-        <IoDocumentSharp />
-        <p className="drop-shadow-lg">Documents</p>
-      </button>
-      <button
-        onClick={() => {
-          setIsDash(false);
-          setIsDocument(false);
-          setIsImages(true);
-          setIsMedia(false);
-          setIsOthers(false);
-          props.changeTab("image");
-        }}
-        className={
-          isImages
-            ? "p-4 w-50 h-10 shadow-lg text-white bg-orange-600 transition-all mb-4 rounded-full hover:cursor-pointer flex items-center justify-center gap-2"
-            : "p-4 w-50 h-10  group focus:shadow-lg text-orange-600 transition-all mb-4 rounded-full hover:cursor-pointer flex items-center justify-center gap-2"
-        }
-      >
-        <FaImages />
-        <p className="drop-shadow-lg">Images</p>
-      </button>
-      <button
-        onClick={() => {
-          setIsDash(false);
-          setIsDocument(false);
-          setIsImages(false);
-          setIsMedia(true);
-          setIsOthers(false);
-          props.changeTab("media");
-        }}
-        className={
-          isMedia
-            ? "p-4 w-50 h-10 shadow-lg text-white bg-orange-600 transition-all mb-4 rounded-full hover:cursor-pointer flex items-center justify-center gap-2"
-            : "p-4 w-50 h-10  group focus:shadow-lg text-orange-600 transition-all mb-4 rounded-full hover:cursor-pointer flex items-center justify-center gap-2"
-        }
-      >
-        <FaVideo />
-        <p className="drop-shadow-lg">Media</p>
-      </button>
-      <button
-        onClick={() => {
-          setIsDash(false);
-          setIsDocument(false);
-          setIsImages(false);
-          setIsMedia(false);
-          setIsOthers(true);
-          props.changeTab("other");
-        }}
-        className={
-          isOthers
-            ? "p-4 w-50 h-10 shadow-lg text-white bg-orange-600 transition-all mb-4 rounded-full hover:cursor-pointer flex items-center justify-center gap-2"
-            : "p-4 w-50 h-10  group focus:shadow-lg text-orange-600 transition-all mb-4 rounded-full hover:cursor-pointer flex items-center justify-center gap-2"
-        }
-      >
-        <AiFillPieChart />
-        <p className="drop-shadow-lg">Others</p>
-      </button>
-    </div>
+    <aside className="dv-glass h-fit rounded-2xl p-3 lg:sticky lg:top-[108px]">
+      <div className="mb-2 px-2 pt-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-200/70">
+        Workspace
+      </div>
+
+      <div className="flex flex-row flex-wrap gap-2 lg:flex-col">
+        {tabs.map(({ id, label, icon: Icon }) => {
+          const isActive = activeTab === id;
+          return (
+            <button
+              key={id}
+              onClick={() => changeTab(id)}
+              className={[
+                "group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-200",
+                isActive
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-900/40"
+                  : "text-blue-100/85 hover:bg-white/5 hover:text-white",
+              ].join(" ")}
+            >
+              <Icon className={isActive ? "text-white" : "text-blue-200/80 group-hover:text-white"} />
+              <span>{label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </aside>
   );
 };
 
