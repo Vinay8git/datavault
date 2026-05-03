@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { useEffect, useState, lazy, Suspense } from "react";
 import { checkAuth } from "./services/authCheck";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+import AuthGatePage from "./components/auth/AuthGatePage";
 
 const HomePage = lazy(() => import("./pages/Home"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -34,9 +36,30 @@ const App = () => {
     <Router>
       <Suspense fallback={<RouteSkeleton />}>
         <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/dashboard" element={<Dashboard user={user} setUser={setUser} />} />
-          <Route path="/upload" element={<UploadPage user={user} setUser={setUser} />} />
+          <Route path="/" element={<HomePage user={user} setUser={setUser} />} />
+
+          <Route
+            path="/auth-gateway"
+            element={<AuthGatePage setUser={setUser} />}
+          />
+
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute user={user}>
+                <Dashboard user={user} setUser={setUser} />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/upload"
+            element={
+              <ProtectedRoute user={user}>
+                <UploadPage user={user} setUser={setUser} />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Suspense>
     </Router>

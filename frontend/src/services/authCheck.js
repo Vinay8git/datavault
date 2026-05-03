@@ -6,13 +6,17 @@ export async function checkAuth() {
       credentials: "include",
     });
 
-    if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data?.authenticated) {
       return { authenticated: false };
     }
 
-    const data = await res.json();
-    return data;
-  } catch (err) {
+    return {
+      authenticated: true,
+      user: data.user,
+    };
+  } catch (_err) {
     return { authenticated: false };
   }
 }

@@ -4,35 +4,30 @@ import { ethers } from "ethers";
 const BACKEND_URL = "http://localhost:4000";
 
 export async function loginWithMetaMask(setUser) {
-
   try {
-
     if (!window.ethereum) {
-      alert("MetaMask not installed");
-      return;
+      return { success: false, message: "MetaMask not installed" };
     }
 
-    // 1. Get wallet
     const accounts = await window.ethereum.request({
       method: "eth_requestAccounts",
     });
 
     const rawAddress = accounts[0];
-
-    // EIP-55 checksum
     const address = ethers.getAddress(rawAddress);
 
-    // 2. Get nonce
-    const nonceRes = await fetch(
-      `${BACKEND_URL}/auth/nonce?address=${address}`,
-      {
-        credentials: "include",
-      }
-    );
+    const nonceRes = await fetch(`${BACKEND_URL}/auth/nonce?address=${address}`, {
+      credentials: "include",
+    });
 
-    const { nonce } = await nonceRes.json();
+    const nonceData = await nonceRes.json();
+    if (!nonceRes.ok || !nonceData?.success || !nonceData?.nonce) {
+      return {
+        success: false,
+        message: nonceData?.message || "Failed to fetch nonce",
+      };
+    }
 
-    // 3. Create SIWE message
     const message = new SiweMessage({
       domain: window.location.host,
       address,
@@ -40,23 +35,19 @@ export async function loginWithMetaMask(setUser) {
       uri: window.location.origin,
       version: "1",
       chainId: 1,
-      nonce,
+      nonce: nonceData.nonce,
     });
 
     const messageToSign = message.prepareMessage();
 
-    // 4. Sign with MetaMask
     const signature = await window.ethereum.request({
       method: "personal_sign",
       params: [messageToSign, address],
     });
 
-    // 5. Verify with backend
-    const res = await fetch(`${BACKEND_URL}/auth/verify`, {
+    const verifyRes = await fetch(`${BACKEND_URL}/auth/verify`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({
         message: messageToSign,
@@ -64,21 +55,24 @@ export async function loginWithMetaMask(setUser) {
       }),
     });
 
-    const data = await res.json();
+    const verifyData = await verifyRes.json();
 
-    if (!data.success) {
-      throw new Error("Login failed");
+    if (!verifyRes.ok || !verifyData?.success) {
+      return {
+        success: false,
+        message: verifyData?.message || "Login failed",
+      };
     }
 
-    // ✅ INSTANT UI UPDATE
-    setUser({
-      address,
-    });
+    const user = verifyData.user || { address };
+    setUser(user);
 
+    return { success: true, user };
   } catch (err) {
-
-    console.error(err);
-    alert("Authentication failed");
-
+    console.error("loginWithMetaMask error:", err);
+    return {
+      success: false,
+      message: err?.message || "Authentication failed",
+    };
   }
 }

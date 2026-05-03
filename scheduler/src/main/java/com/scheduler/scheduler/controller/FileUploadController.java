@@ -29,6 +29,7 @@ import com.scheduler.scheduler.config.RabbitMQConfig;
 import com.scheduler.scheduler.model.ChunkTask;
 import com.scheduler.scheduler.model.FileMetadata;
 import com.scheduler.scheduler.repository.FileMetadataRepository;
+import com.scheduler.scheduler.security.RequireAuth;
 import com.scheduler.scheduler.service.CreateMetadataService;
 
 import io.datavault.common.grpc.RetrieveChunkRequest;
@@ -36,6 +37,7 @@ import io.datavault.common.grpc.RetrieveChunkResponse;
 import io.datavault.common.grpc.WorkerServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+;
 
 @RestController
 @RequestMapping("/files")
@@ -50,6 +52,7 @@ public class FileUploadController {
     @Autowired
     private CreateMetadataService createMetadataService;
 
+    @RequireAuth
     @PostMapping("/uploadFile")
     public String uploadFile(@RequestParam("file") MultipartFile file) {
         String fileId = UUID.randomUUID().toString();
@@ -86,6 +89,7 @@ public class FileUploadController {
         return "Upload successful. Total chunks sent: " + chunkId;
     }
 
+    @RequireAuth
     @GetMapping("/getFile")
     public ResponseEntity<byte[]> getFile(@RequestParam String name) {
         FileMetadata metadata = metadataRepository.findByFilename(name);
