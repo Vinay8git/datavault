@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 const NAV_LINKS = [
-  { label: "Why Us", href: "#why-us" },
+  { label: "Why US", href: "#why-us" },
   { label: "Architecture", href: "#architecture" },
   { label: "Security", href: "#security" },
   { label: "About", href: "#about" },
