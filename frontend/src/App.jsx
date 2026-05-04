@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState, lazy, Suspense } from "react";
 import { checkAuth } from "./services/authCheck";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
@@ -16,6 +16,63 @@ const RouteSkeleton = () => (
     </div>
   </div>
 );
+
+const AppRoutes = ({ user, setUser, setLoadingAuth }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Global auth re-check when route changes; handles expired session gracefully
+  useEffect(() => {
+    let mounted = true;
+    async function syncAuth() {
+      const res = await checkAuth();
+      if (!mounted) return;
+
+      if (!res.authenticated && user) {
+        setUser(null);
+
+        const protectedPaths = ["/dashboard", "/upload"];
+        if (protectedPaths.some((p) => location.pathname.startsWith(p))) {
+          navigate("/auth-gateway", {
+            replace: true,
+            state: { from: location.pathname },
+          });
+        }
+      } else if (res.authenticated && !user) {
+        setUser(res.user);
+      }
+      setLoadingAuth(false);
+    }
+
+    syncAuth();
+    return () => {
+      mounted = false;
+    };
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage user={user} setUser={setUser} />} />
+      <Route path="/auth-gateway" element={<AuthGatePage setUser={setUser} />} />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute user={user}>
+            <Dashboard user={user} setUser={setUser} />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/upload"
+        element={
+          <ProtectedRoute user={user}>
+            <UploadPage user={user} setUser={setUser} />
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
+  );
+};
 
 const App = () => {
   const [user, setUser] = useState(null);
@@ -35,32 +92,7 @@ const App = () => {
   return (
     <Router>
       <Suspense fallback={<RouteSkeleton />}>
-        <Routes>
-          <Route path="/" element={<HomePage user={user} setUser={setUser} />} />
-
-          <Route
-            path="/auth-gateway"
-            element={<AuthGatePage setUser={setUser} />}
-          />
-
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute user={user}>
-                <Dashboard user={user} setUser={setUser} />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/upload"
-            element={
-              <ProtectedRoute user={user}>
-                <UploadPage user={user} setUser={setUser} />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
+        <AppRoutes user={user} setUser={setUser} setLoadingAuth={setLoadingAuth} />
       </Suspense>
     </Router>
   );

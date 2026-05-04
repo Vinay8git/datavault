@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Moon,
   Sun,
@@ -244,6 +244,15 @@ const HomePage = () => {
     );
   };
 
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const goProtected = (path) => {
+    // For now we rely on route-level guard + gateway;
+    // this provides cleaner CTA intent forwarding.
+    navigate(path, { state: { fromPublic: location.pathname } });
+  };
+
   return (
     <div className="dv-home min-h-screen w-full">
       {/* Ambient */}
@@ -277,13 +286,12 @@ const HomePage = () => {
               <span>{theme === "dark" ? "Light" : "Dark"}</span>
             </button>
 
-            <Link to="/dashboard" className="dv-home-cta-secondary">
+            <button onClick={() => goProtected("/dashboard")} className="dv-home-cta-secondary">
               Dashboard
-            </Link>
-            <Link to="/upload" className="dv-home-cta-primary">
+            </button>
+            <button onClick={() => goProtected("/upload")} className="dv-home-cta-primary">
               Start Upload
-            </Link>
-
+            </button>
             <button
               type="button"
               className="dv-home-mobile-toggle"
