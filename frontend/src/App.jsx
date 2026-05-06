@@ -30,6 +30,40 @@ const App = () => {
     init();
   }, []);
 
+  useEffect(() => {
+  if (!window.ethereum) return;
+
+  const handleAccountsChanged = async (accounts) => {
+    const next = accounts?.[0]?.toLowerCase?.() || null;
+    const current = user?.address?.toLowerCase?.() || null;
+
+    // strict mode: if authenticated session exists but wallet account changes, force logout state
+    if (current && next && current !== next) {
+      setUser(null);
+    }
+
+    // if wallet disconnected, clear local state
+    if (!next && current) {
+      setUser(null);
+    }
+  };
+
+  const handleChainChanged = async () => {
+    // lightweight re-check to keep UI truthful after chain switch
+    const res = await checkAuth();
+    if (res.authenticated) setUser(res.user);
+    else setUser(null);
+  };
+
+  window.ethereum.on("accountsChanged", handleAccountsChanged);
+  window.ethereum.on("chainChanged", handleChainChanged);
+
+    return () => {
+      window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
+      window.ethereum.removeListener("chainChanged", handleChainChanged);
+    };
+  }, [user]);
+
   if (loadingAuth) return <RouteSkeleton />;
 
   return (

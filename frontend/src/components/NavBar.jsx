@@ -50,7 +50,7 @@ const NavBar = ({ user, setUser, className = "" }) => {
           {user ? (
             <div className="wallet-pill px-3 py-2 text-sm">{shortAddress}</div>
           ) : (
-            <button
+            <button title="Authenticated wallet"
               onClick={() => loginWithMetaMask(setUser)}
               className="ghost-btn px-4 py-2 text-sm font-semibold"
             >

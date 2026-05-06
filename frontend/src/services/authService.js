@@ -1,31 +1,33 @@
 import { SiweMessage } from "siwe";
 import { ethers } from "ethers";
+import { apiRequest } from "./apiClient";
 
-const BACKEND_URL = "http://localhost:4000";
+export async function loginWithMetaMask(setUser, options = {}) {
+  const onStageChange = options.onStageChange || (() => {});
 
-export async function loginWithMetaMask(setUser) {
   try {
     if (!window.ethereum) {
-      return { success: false, message: "MetaMask not installed" };
+      return { success: false, code: "NO_METAMASK", message: "MetaMask not installed" };
     }
 
-    const accounts = await window.ethereum.request({
-      method: "eth_requestAccounts",
-    });
+    onStageChange("connecting");
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    const rawAddress = accounts?.[0];
 
-    const rawAddress = accounts[0];
+    if (!rawAddress) {
+      return { success: false, code: "NO_ACCOUNT", message: "No wallet account selected" };
+    }
+
     const address = ethers.getAddress(rawAddress);
 
-    const nonceRes = await fetch(`${BACKEND_URL}/auth/nonce?address=${address}`, {
-      credentials: "include",
+    const nonceData = await apiRequest({
+      base: "auth",
+      path: `/auth/nonce?address=${address}`,
+      method: "GET",
     });
 
-    const nonceData = await nonceRes.json();
-    if (!nonceRes.ok || !nonceData?.success || !nonceData?.nonce) {
-      return {
-        success: false,
-        message: nonceData?.message || "Failed to fetch nonce",
-      };
+    if (!nonceData?.success || !nonceData?.nonce) {
+      return { success: false, code: "NONCE_FAILED", message: "Failed to fetch nonce" };
     }
 
     const message = new SiweMessage({
@@ -40,28 +42,23 @@ export async function loginWithMetaMask(setUser) {
 
     const messageToSign = message.prepareMessage();
 
+    onStageChange("signing");
     const signature = await window.ethereum.request({
       method: "personal_sign",
       params: [messageToSign, address],
     });
 
-    const verifyRes = await fetch(`${BACKEND_URL}/auth/verify`, {
+    onStageChange("verifying");
+    const verifyData = await apiRequest({
+      base: "auth",
+      path: "/auth/verify",
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        message: messageToSign,
-        signature,
-      }),
+      body: JSON.stringify({ message: messageToSign, signature }),
     });
 
-    const verifyData = await verifyRes.json();
-
-    if (!verifyRes.ok || !verifyData?.success) {
-      return {
-        success: false,
-        message: verifyData?.message || "Login failed",
-      };
+    if (!verifyData?.success) {
+      return { success: false, code: "VERIFY_FAILED", message: "Login failed" };
     }
 
     const user = verifyData.user || { address };
@@ -69,10 +66,25 @@ export async function loginWithMetaMask(setUser) {
 
     return { success: true, user };
   } catch (err) {
-    console.error("loginWithMetaMask error:", err);
     return {
       success: false,
+      code: err?.code || "AUTH_ERROR",
       message: err?.message || "Authentication failed",
     };
+  }
+}
+
+export async function logout(setUser) {
+  try {
+    await apiRequest({
+      base: "auth",
+      path: "/auth/logout",
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (_err) {
+    // no-op
+  } finally {
+    setUser(null);
   }
 }

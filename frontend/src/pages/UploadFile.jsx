@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { apiRequest } from "../services/apiClient";
 import {
   UploadCloud,
   FileText,
@@ -57,24 +58,6 @@ const UploadWorkspace = () => {
   }, []);
 
   // Simulated progress loop for premium UX feedback
-  useEffect(() => {
-    if (!queue.some((f) => f.status === "uploading")) return;
-
-    const timer = setInterval(() => {
-      setQueue((prev) =>
-        prev.map((f) => {
-          if (f.status !== "uploading") return f;
-          const next = Math.min(100, f.progress + Math.random() * 18);
-          if (next >= 100) {
-            return { ...f, progress: 100, status: "success" };
-          }
-          return { ...f, progress: next };
-        })
-      );
-    }, 420);
-
-    return () => clearInterval(timer);
-  }, [queue]);
 
   const stats = useMemo(() => {
     const total = queue.length;
@@ -96,6 +79,7 @@ const UploadWorkspace = () => {
         name: file.name,
         type,
         size: file.size,
+        fileRef: file,
         progress: tooLarge ? 0 : 6,
         status: tooLarge ? "failed" : "queued",
         error: tooLarge ? `File exceeds ${MAX_FILE_SIZE_MB}MB threshold.` : null,
@@ -105,11 +89,53 @@ const UploadWorkspace = () => {
     setQueue((prev) => [...incoming, ...prev]);
   };
 
-  const beginUpload = () => {
-    setQueue((prev) =>
-      prev.map((f) => (f.status === "queued" ? { ...f, status: "uploading", progress: Math.max(8, f.progress) } : f))
-    );
-  };
+  const beginUpload = async () => {
+  const queuedFiles = queue.filter((f) => f.status === "queued" && f.fileRef);
+  if (queuedFiles.length === 0) return;
+
+  // mark queued files as uploading
+  setQueue((prev) =>
+    prev.map((f) =>
+      f.status === "queued" && f.fileRef
+        ? { ...f, status: "uploading", progress: Math.max(8, f.progress) }
+        : f
+    )
+  );
+
+  for (const item of queuedFiles) {
+    try {
+      const formData = new FormData();
+      formData.append("file", item.fileRef);
+
+      // backend-driven endpoint naming: /files/uploadFile
+      await apiRequest({
+        base: "scheduler",
+        path: "/files/uploadFile",
+        method: "POST",
+        body: formData,
+      });
+
+      setQueue((prev) =>
+        prev.map((f) =>
+          f.id === item.id ? { ...f, status: "success", progress: 100, error: null } : f
+        )
+      );
+    } catch (err) {
+      setQueue((prev) =>
+        prev.map((f) =>
+          f.id === item.id
+            ? {
+                ...f,
+                status: "failed",
+                progress: 0,
+                error: err?.message || "Upload failed",
+              }
+            : f
+        )
+      );
+    }
+  }
+};
 
   const clearCompleted = () => {
     setQueue((prev) => prev.filter((f) => f.status !== "success"));

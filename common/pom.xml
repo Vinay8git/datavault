@@ -66,6 +66,13 @@
             <artifactId>grpc-stub</artifactId>
             <version>1.70.0</version>
         </dependency>
+
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-inprocess</artifactId>
+            <version>1.70.0</version>
+            <scope>test</scope>
+        </dependency>
 	</dependencies>
 
 	<build>

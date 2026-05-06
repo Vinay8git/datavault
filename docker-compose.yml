@@ -14,7 +14,7 @@ services:
     networks:
       - app_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -47,6 +47,9 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER}
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS}
+      AUTH_SERVICE_BASE_URL: http://host.docker.internal:4000
+      AUTH_ME_ENDPOINT: /auth/me
+      AUTH_TIMEOUT_MS: 2500
     ports:
       - "8080:8080"
       - "6000:6000"

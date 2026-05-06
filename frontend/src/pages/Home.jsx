@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Moon,
   Sun,
@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 const NAV_LINKS = [
-  { label: "Why US", href: "#why-us" },
+  { label: "Why Us", href: "#why-us" },
   { label: "Architecture", href: "#architecture" },
   { label: "Security", href: "#security" },
   { label: "About", href: "#about" },
@@ -214,6 +214,9 @@ const HomePage = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const navigate = useNavigate();
+  const location = useLocation();
+
   useEffect(() => {
     document.documentElement.setAttribute("data-home-theme", theme);
     localStorage.setItem("dv-home-theme", theme);
@@ -228,7 +231,11 @@ const HomePage = () => {
 
   const nextTheme = useMemo(() => (theme === "dark" ? "light" : "dark"), [theme]);
 
-    const renderFooterLink = (link) => {
+  const goProtected = (path) => {
+    navigate(path, { state: { fromPublic: location.pathname } });
+  };
+
+  const renderFooterLink = (link) => {
     if (!link.external && link.href.startsWith("/")) {
       return (
         <Link to={link.href} className="dv-footer-link">
@@ -246,10 +253,8 @@ const HomePage = () => {
 
   return (
     <div className="dv-home min-h-screen w-full">
-      {/* Ambient */}
       <div className="dv-home-ambient pointer-events-none" />
 
-      {/* Navbar */}
       <header className={`dv-home-nav-wrap ${scrolled ? "is-scrolled" : ""}`}>
         <nav className="dv-home-nav">
           <Link to="/" className="dv-home-brand" aria-label="DataVaultX Home">
@@ -277,12 +282,12 @@ const HomePage = () => {
               <span>{theme === "dark" ? "Light" : "Dark"}</span>
             </button>
 
-            <Link to="/dashboard" className="dv-home-cta-secondary">
+            <button type="button" onClick={() => goProtected("/dashboard")} className="dv-home-cta-secondary">
               Dashboard
-            </Link>
-            <Link to="/upload" className="dv-home-cta-primary">
+            </button>
+            <button type="button" onClick={() => goProtected("/upload")} className="dv-home-cta-primary">
               Start Upload
-            </Link>
+            </button>
 
             <button
               type="button"
@@ -307,9 +312,7 @@ const HomePage = () => {
       </header>
 
       <main className="dv-home-main">
-        {/* HERO */}
         <section className="dv-home-hero">
-          {/* Left 70% */}
           <div className="dv-hero-left">
             <div className="dv-home-eyebrow">Distributed Storage Infrastructure</div>
 
@@ -319,15 +322,19 @@ const HomePage = () => {
             </h1>
 
             <p className="dv-hero-subtitle">
-              DataVaultX orchestrates encrypted uploads, geo-redundant replication, and low-latency retrieval
-              in one premium platform designed for modern teams and mission-critical workloads.
+              DataVaultX orchestrates encrypted uploads, geo-redundant replication, and low-latency retrieval in one
+              premium platform designed for modern teams and mission-critical workloads.
             </p>
 
             <div className="dv-hero-cta-row">
-              <Link to="/upload" className="dv-home-cta-primary dv-hero-primary">
+              <button
+                type="button"
+                onClick={() => goProtected("/upload")}
+                className="dv-home-cta-primary dv-hero-primary"
+              >
                 Start Secure Upload
                 <ArrowRight size={16} />
-              </Link>
+              </button>
               <a href="#architecture" className="dv-home-cta-secondary dv-hero-secondary">
                 View Architecture
               </a>
@@ -352,7 +359,6 @@ const HomePage = () => {
             </div>
           </div>
 
-          {/* Right 30% */}
           <aside className="dv-hero-right" aria-label="Distributed storage visual">
             <div className="dv-hero-orb" />
 
@@ -395,15 +401,13 @@ const HomePage = () => {
           </aside>
         </section>
 
-        {/* Anchors for next tasks */}
-                {/* WHY US + ADVANTAGES */}
         <section id="why-us" className="dv-home-section dv-reveal">
           <div className="dv-home-section-head">
             <p className="dv-home-kicker">Why Choose DataVaultX</p>
             <h2>Infrastructure-grade storage without complexity.</h2>
             <p>
-              We combine secure distributed architecture, enterprise trust controls, and high-speed data access
-              into one cohesive platform engineered for modern cloud teams.
+              We combine secure distributed architecture, enterprise trust controls, and high-speed data access into
+              one cohesive platform engineered for modern cloud teams.
             </p>
           </div>
 
@@ -418,21 +422,22 @@ const HomePage = () => {
           </div>
         </section>
 
-        {/* SECURITY + FEATURES */}
         <section id="security" className="dv-home-section dv-reveal">
           <div className="dv-home-section-head">
             <p className="dv-home-kicker">Enterprise Trust Layer</p>
             <h2>Security, privacy, and reliability engineered into every file operation.</h2>
             <p>
-              From encrypted transfer pipelines to robust auditability, DataVaultX is designed
-              for organizations where uptime, governance, and control are non-negotiable.
+              From encrypted transfer pipelines to robust auditability, DataVaultX is designed for organizations where
+              uptime, governance, and control are non-negotiable.
             </p>
           </div>
 
           <div className="dv-feature-grid">
             {featureGrid.map((feature) => (
               <article key={feature.title} className="dv-feature-card">
-                <div className="dv-feature-icon" aria-hidden="true">{feature.icon}</div>
+                <div className="dv-feature-icon" aria-hidden="true">
+                  {feature.icon}
+                </div>
                 <h3>{feature.title}</h3>
                 <p>{feature.text}</p>
               </article>
@@ -440,15 +445,13 @@ const HomePage = () => {
           </div>
         </section>
 
-        {/* Keep anchors for next tasks */}
-                {/* ARCHITECTURE / WORKFLOW */}
         <section id="architecture" className="dv-home-section dv-reveal">
           <div className="dv-home-section-head">
             <p className="dv-home-kicker">Architecture Workflow</p>
             <h2>Purpose-built distributed pipeline for resilient enterprise storage.</h2>
             <p>
-              DataVaultX coordinates secure ingestion, policy-based replication, and fast global retrieval through
-              a deterministic workflow designed for performance, durability, and governance.
+              DataVaultX coordinates secure ingestion, policy-based replication, and fast global retrieval through a
+              deterministic workflow designed for performance, durability, and governance.
             </p>
           </div>
 
@@ -494,7 +497,6 @@ const HomePage = () => {
             </div>
           </div>
 
-          {/* Reliability band */}
           <div className="dv-reliability-band">
             {reliabilityMetrics.map((m) => (
               <article key={m.label} className="dv-reliability-metric">
@@ -504,7 +506,6 @@ const HomePage = () => {
             ))}
           </div>
 
-          {/* Promo CTA */}
           <div className="dv-home-inline-cta">
             <div>
               <p className="dv-home-kicker">Production Ready</p>
@@ -514,20 +515,24 @@ const HomePage = () => {
               </p>
             </div>
             <div className="dv-home-inline-cta-actions">
-              <Link to="/upload" className="dv-home-cta-primary">Start Upload</Link>
-              <Link to="/dashboard" className="dv-home-cta-secondary">Open Dashboard</Link>
+              <button type="button" onClick={() => goProtected("/upload")} className="dv-home-cta-primary">
+                Start Upload
+              </button>
+              <button type="button" onClick={() => goProtected("/dashboard")} className="dv-home-cta-secondary">
+                Open Dashboard
+              </button>
             </div>
           </div>
         </section>
-                {/* ABOUT + LEADERSHIP */}
+
         <section id="about" className="dv-home-section dv-reveal">
           <div className="dv-home-section-head">
             <p className="dv-home-kicker">About DataVaultX</p>
             <h2>Building the trust layer for distributed cloud storage.</h2>
             <p>
               DataVaultX was founded to make enterprise storage infrastructure secure, resilient, and operationally
-              elegant. Our mission is to give teams confidence that every file operation is protected, observable,
-              and globally reliable.
+              elegant. Our mission is to give teams confidence that every file operation is protected, observable, and
+              globally reliable.
             </p>
           </div>
 
@@ -535,8 +540,8 @@ const HomePage = () => {
             <article className="dv-about-vision-card">
               <h3>Our Vision</h3>
               <p>
-                Enable every organization to run mission-critical workloads on a storage platform
-                that combines premium UX with deep infrastructure reliability.
+                Enable every organization to run mission-critical workloads on a storage platform that combines
+                premium UX with deep infrastructure reliability.
               </p>
 
               <div className="dv-about-pill-row">
@@ -590,25 +595,28 @@ const HomePage = () => {
             })}
           </div>
         </section>
-                {/* FINAL CTA */}
+
         <section className="dv-home-final-cta dv-reveal">
           <div className="dv-home-final-cta-bg" />
           <div className="dv-home-final-cta-content">
             <p className="dv-home-kicker">Ready to Deploy</p>
             <h2>Launch enterprise-grade distributed storage with confidence.</h2>
             <p>
-              Secure uploads, global replication, and trusted access governance —
-              all in one premium platform engineered for modern infrastructure teams.
+              Secure uploads, global replication, and trusted access governance — all in one premium platform
+              engineered for modern infrastructure teams.
             </p>
 
             <div className="dv-home-final-cta-actions">
-              <Link to="/upload" className="dv-home-cta-primary">Start Secure Upload</Link>
-              <Link to="/dashboard" className="dv-home-cta-secondary">Open Dashboard</Link>
+              <button type="button" onClick={() => goProtected("/upload")} className="dv-home-cta-primary">
+                Start Secure Upload
+              </button>
+              <button type="button" onClick={() => goProtected("/dashboard")} className="dv-home-cta-secondary">
+                Open Dashboard
+              </button>
             </div>
           </div>
         </section>
 
-        {/* FOOTER */}
         <footer className="dv-home-footer">
           <div className="dv-home-footer-top">
             <div className="dv-home-footer-brand">
@@ -617,8 +625,8 @@ const HomePage = () => {
                 DataVault<span>X</span>
               </div>
               <p>
-                Premium distributed storage infrastructure for secure, scalable, and
-                high-performance enterprise workloads.
+                Premium distributed storage infrastructure for secure, scalable, and high-performance enterprise
+                workloads.
               </p>
 
               <div className="dv-home-footer-social">
